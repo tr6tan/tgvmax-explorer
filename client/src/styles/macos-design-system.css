@@ -1,0 +1,334 @@
+/* macOS Design System */
+:root {
+  --macos-background: rgba(255, 255, 255, 0.8);
+  --macos-background-secondary: rgba(248, 250, 252, 0.8);
+  --macos-border: rgba(226, 232, 240, 0.8);
+  --macos-text-primary: #1f2937;
+  --macos-text-secondary: #6b7280;
+  --macos-accent: #3b82f6;
+  --macos-accent-hover: #2563eb;
+  --macos-success: #10b981;
+  --macos-error: #ef4444;
+  --macos-warning: #f59e0b;
+}
+
+/* iOS 26 Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+/* iOS-style Glass Effects */
+.macos-glass-container {
+  background: var(--macos-background);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--macos-border);
+}
+
+.macos-glass-secondary {
+  background: var(--macos-background-secondary);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+/* iOS-style Buttons */
+.ios-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.ios-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.ios-button:active {
+  transform: translateY(0);
+}
+
+/* iOS-style Cards */
+.ios-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.ios-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* iOS-style Badges */
+.ios-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* iOS-style Inputs */
+.ios-input {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.ios-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* iOS-style Tabs */
+.ios-tabs {
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.ios-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+}
+
+.ios-tab.active {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* iOS-style Status Indicators */
+.ios-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ios-status.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.ios-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.ios-status.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+/* iOS-style Loading Spinner */
+.ios-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* iOS-style Animations */
+.ios-fade-in {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.ios-slide-in {
+  animation: slideInRight 0.4s ease-out;
+}
+
+.ios-pulse {
+  animation: pulse 2s infinite;
+}
+
+.ios-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* iOS-style Hover Effects */
+.ios-hover {
+  transition: all 0.3s ease;
+}
+
+.ios-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* iOS-style Focus States */
+.ios-focus:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+/* iOS-style Responsive Design */
+@media (max-width: 768px) {
+  .ios-card {
+    margin: 10px;
+    border-radius: 12px;
+  }
+  
+  .ios-button {
+    padding: 16px 24px;
+    font-size: 18px;
+  }
+  
+  .ios-input {
+    padding: 16px;
+    font-size: 18px;
+  }
+}
+
+/* iOS-style Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --macos-background: rgba(17, 24, 39, 0.8);
+    --macos-background-secondary: rgba(31, 41, 55, 0.8);
+    --macos-border: rgba(55, 65, 81, 0.8);
+    --macos-text-primary: #f9fafb;
+    --macos-text-secondary: #d1d5db;
+  }
+  
+  .ios-card {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+  
+  .ios-input {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+  }
+}
+
+/* iOS-style Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS-style High Contrast Mode */
+@media (prefers-contrast: high) {
+  .ios-button {
+    border: 2px solid currentColor;
+  }
+  
+  .ios-card {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Leaflet Map Styles */
+.leaflet-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+  font-size: 14px;
+}
+
+.leaflet-popup-tip {
+  background: white;
+}
+
+.custom-div-icon {
+  background: transparent;
+  border: none;
+}
+
+.custom-div-icon div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+} 

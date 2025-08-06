@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Corriger les icônes Leaflet par défaut
+// Correction des icônes Leaflet par défaut
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
@@ -15,7 +15,7 @@ interface TGVmaxMapProps {
   departureCity: string;
   selectedDate: string;
   currentTime: Date;
-  apiType: 'tgvmax' | 'ouisncf';
+  apiType: 'tgvmax' | 'ouisncf' | 'sncf-official';
 }
 
 interface Train {
@@ -30,142 +30,99 @@ interface Train {
   price: string;
 }
 
-interface CityData {
+interface CityInfo {
   name: string;
-  trains: Train[];
   coordinates: [number, number];
-  availableTrains: number;
-  departedTrains: number;
 }
 
-// Coordonnées des villes françaises principales (latitude, longitude)
-const cityCoordinates: { [key: string]: [number, number] } = {
-  'Paris': [48.8566, 2.3522],
-  'Lyon': [45.7578, 4.8320],
-  'Marseille': [43.2965, 5.3698],
-  'Bordeaux': [44.8378, -0.5792],
-  'Nantes': [47.2184, -1.5536],
-  'Toulouse': [43.6047, 1.4442],
-  'Lille': [50.6292, 3.0573],
-  'Strasbourg': [48.5734, 7.7521],
-  'Nice': [43.7102, 7.2620],
-  'Montpellier': [43.6108, 3.8767],
-  'Rennes': [48.1173, -1.6778],
-  'Reims': [49.2583, 4.0317],
-  'Dijon': [47.3220, 5.0415],
-  'Besançon': [47.2376, 6.0241],
-  'Angoulême': [45.6489, 0.1562],
-  'Biarritz': [43.4832, -1.5586],
-  'Hendaye': [43.3603, -1.7826],
-  'St Jean de Luz': [43.3887, -1.6623],
-  'Avignon': [43.9493, 4.8055],
-  'Aix-en-Provence': [43.5297, 5.4474],
-  'Cannes': [43.5528, 7.0174],
-  'Antibes': [43.5804, 7.1251],
-  'Vannes': [47.6582, -2.7608],
-  'Lorient': [47.7483, -3.3700],
-  'Auray': [47.6708, -2.9817],
-  'Vitré': [48.1242, -1.2057],
-  'Bayonne': [43.4929, -1.4748],
-  'Morlaix': [48.5776, -3.8279],
-  'Brest': [48.3904, -4.4861],
-  'St Pierre des Corps': [47.3866, 0.7161],
-  'St Denis Pres Martel': [44.9361, 1.6211],
-  'AIX EN PROVENCE': [43.5297, 5.4474],
-  'MARSEILLE': [43.2965, 5.3698],
-  'NICE': [43.7102, 7.2620],
-  'BORDEAUX': [44.8378, -0.5792],
-  'RENNES': [48.1173, -1.6778],
-  'VANNES': [47.6582, -2.7608],
-  'LORIENT': [47.7483, -3.3700],
-  'AURAY': [47.6708, -2.9817],
-  'VITRE': [48.1242, -1.2057],
-  'BAYONNE': [43.4929, -1.4748],
-  'BIARRITZ': [43.4832, -1.5586],
-  'HENDAYE': [43.3603, -1.7826],
-  'ST JEAN DE LUZ': [43.3887, -1.6623],
-  'AVIGNON': [43.9493, 4.8055],
-  'CANNES': [43.5528, 7.0174],
-  'ANTIBES': [43.5804, 7.1251],
-  'MORLAIX': [48.5776, -3.8279],
-  'BREST': [48.3904, -4.4861],
-  'ANGOULEME': [45.6489, 0.1562]
+// Cache pour les coordonnées des villes
+const cityCache: { [key: string]: CityInfo } = {};
+
+// Clé API Google Maps
+const GOOGLE_MAPS_API_KEY = 'AIzaSyB2JUQt8zn_2vnLr4C-87SWpfR0nufKY_Y';
+
+// Fonction pour nettoyer et normaliser les noms de villes
+const normalizeCityName = (cityName: string): string => {
+  if (!cityName) return 'Inconnue';
+  
+  // Nettoyer le nom de la ville
+  let normalized = cityName
+    .replace(/\(.*?\)/g, '') // Enlever les parenthèses
+    .replace(/TGV$/i, '') // Enlever TGV à la fin
+    .replace(/ST\s+/gi, 'SAINT ') // Normaliser ST
+    .replace(/\s+/g, ' ') // Normaliser les espaces
+    .trim();
+  
+  return normalized;
+};
+
+// Fonction pour récupérer les coordonnées via Google Maps API
+const getCityCoordinates = async (cityName: string): Promise<CityInfo | null> => {
+  const cleanCityName = normalizeCityName(cityName);
+  
+  // Vérifier le cache
+  if (cityCache[cleanCityName]) {
+    return cityCache[cleanCityName];
+  }
+
+  try {
+    // Utiliser l'API Google Maps Geocoding
+    const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
+      params: {
+        address: `${cleanCityName}, France`,
+        key: GOOGLE_MAPS_API_KEY,
+        language: 'fr'
+      }
+    });
+
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const location = response.data.results[0].geometry.location;
+      const cityInfo: CityInfo = {
+        name: cleanCityName,
+        coordinates: [location.lat, location.lng]
+      };
+
+      // Mettre en cache
+      cityCache[cleanCityName] = cityInfo;
+      console.log(`✅ Coordonnées trouvées pour ${cleanCityName}: [${cityInfo.coordinates[0]}, ${cityInfo.coordinates[1]}]`);
+      
+      return cityInfo;
+    }
+  } catch (error) {
+    console.error(`❌ Erreur pour récupérer les coordonnées de ${cleanCityName}:`, error);
+  }
+
+  return null;
 };
 
 export default function TGVmaxMap({ departureCity, selectedDate, currentTime, apiType }: TGVmaxMapProps) {
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [apiStatus, setApiStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const linesRef = useRef<L.Polyline[]>([]);
 
-  const searchTrains = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setApiStatus('idle');
-
-      const endpoint = apiType === 'tgvmax' ? '/api/tgvmax/search' : '/api/ouisncf/search';
-      console.log(`🔍 Recherche ${apiType} depuis ${departureCity} pour le ${selectedDate}...`);
-
-      const response = await axios.get(`http://localhost:4000${endpoint}`, {
-        params: {
-          from: departureCity,
-          date: selectedDate
-        }
-      });
-
-      if (response.data.success) {
-        setTrains(response.data.trains || []);
-        setApiStatus('success');
-        console.log(`✅ ${response.data.trains?.length || 0} trajets ${apiType} trouvés`);
-      } else {
-        setError('Erreur lors de la récupération des données');
-        setApiStatus('error');
-      }
-    } catch (err) {
-      console.error(`Erreur ${apiType}:`, err);
-      setError(`Impossible de récupérer les données ${apiType}`);
-      setApiStatus('error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (departureCity && selectedDate) {
-      searchTrains();
-    }
-  }, [departureCity, selectedDate, apiType]);
-
-  // Initialiser la carte Leaflet
+  // 1. Initialisation de la carte centrée sur la France
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-
-    // Attendre un peu pour que le DOM soit prêt
+    
+    // Centrer sur la France avec un zoom approprié
+    const map = L.map(mapRef.current).setView([46.603354, 1.888334], 6);
+    
+    // Style carte moderne avec glassmorphisme
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 18
+    }).addTo(map);
+    
+    mapInstanceRef.current = map;
+    
+    // Forcer le refresh de la carte
     setTimeout(() => {
-      if (!mapRef.current) return;
-
-      // Initialiser la carte centrée sur la France
-      const map = L.map(mapRef.current).setView([46.603354, 1.888334], 6);
-
-      // Ajouter le fond de carte OpenStreetMap
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 18
-      }).addTo(map);
-
-      mapInstanceRef.current = map;
-
-      // Forcer un refresh de la carte
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 100);
+      map.invalidateSize();
     }, 100);
 
     return () => {
@@ -176,341 +133,370 @@ export default function TGVmaxMap({ departureCity, selectedDate, currentTime, ap
     };
   }, []);
 
-  // Mettre à jour les marqueurs quand les données changent
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
+  // 2. Chargement des trajets
+  const fetchTrains = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let endpoint;
+      if (apiType === 'tgvmax') {
+        endpoint = '/api/tgvmax/search';
+      } else if (apiType === 'ouisncf') {
+        endpoint = '/api/ouisncf/search';
+      } else {
+        endpoint = '/api/sncf-official/journeys';
+      }
+      
+      const response = await axios.get(`http://localhost:4000${endpoint}`, {
+        params: { from: departureCity, date: selectedDate }
+      });
+      
+      if (response.data.success) {
+        setTrains(response.data.trains || []);
+        console.log(`✅ ${response.data.trains?.length || 0} trajets chargés`);
+      } else {
+        setError('Erreur lors du chargement des trajets');
+      }
+    } catch (err) {
+      console.error('Erreur API:', err);
+      setError('Erreur lors du chargement des trajets');
+    } finally {
+      setLoading(false);
+    }
+  }, [departureCity, selectedDate, apiType]);
 
-    // Nettoyer les marqueurs et lignes existants
+  useEffect(() => {
+    if (departureCity && selectedDate) {
+      fetchTrains();
+    }
+  }, [departureCity, selectedDate, apiType, fetchTrains]);
+
+  // 3. Affichage des marqueurs et lignes avec glassmorphisme
+  useEffect(() => {
+    if (!mapInstanceRef.current || trains.length === 0) return;
+    
+    console.log(`🗺️ Affichage de ${trains.length} trajets sur la carte`);
+    
+    // Nettoyage des anciens marqueurs et lignes
     markersRef.current.forEach(marker => marker.remove());
     linesRef.current.forEach(line => line.remove());
     markersRef.current = [];
     linesRef.current = [];
 
     const map = mapInstanceRef.current;
-    const cityData = groupTrainsByCity();
+    const departureCoords = cityCache[departureCity.toUpperCase()]?.coordinates || [48.8566, 2.3522];
 
-    // Ajouter le marqueur de la ville de départ
-    const departureCoords = cityCoordinates[departureCity] || [48.8566, 2.3522];
+    // Marqueur de départ avec glassmorphisme
     const departureIcon = L.divIcon({
       className: 'custom-div-icon',
-      html: `<div style="background-color: #ef4444; color: white; padding: 8px 12px; border-radius: 8px; font-weight: bold; border: 2px solid #dc2626; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">🚉 ${departureCity}</div>`,
-      iconSize: [120, 40],
-      iconAnchor: [60, 20]
+                html: `
+            <div style="
+              background: linear-gradient(135deg, rgba(66, 133, 244, 0.9), rgba(66, 133, 244, 0.7));
+              backdrop-filter: blur(10px);
+              -webkit-backdrop-filter: blur(10px);
+              color: white; 
+              padding: 8px; 
+              border-radius: 50%; 
+              font-weight: 600; 
+              border: 1px solid rgba(255, 255, 255, 0.3);
+              box-shadow: 0 8px 32px rgba(66, 133, 244, 0.3);
+              font-size: 16px;
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+              backdrop-filter: blur(10px);
+              transform: translateZ(0);
+              width: 32px;
+              height: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              🚉
+            </div>
+          `,
+              iconSize: [32, 32],
+        iconAnchor: [16, 16]
     });
 
     const departureMarker = L.marker(departureCoords, { icon: departureIcon }).addTo(map);
     markersRef.current.push(departureMarker);
 
-    // Ajouter les marqueurs des destinations
-    cityData.forEach(city => {
-      const availableTrains = city.trains.filter(train => isTrainAvailable(train.departureTime));
-      const departedTrains = city.trains.filter(train => !isTrainAvailable(train.departureTime));
-      
-      const markerColor = availableTrains.length > 0 ? '#10b981' : '#9ca3af';
-      const borderColor = availableTrains.length > 0 ? '#059669' : '#6b7280';
-      
-      const cityIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `
-          <div style="
-            background-color: ${markerColor}; 
-            color: white; 
-            padding: 8px 12px; 
-            border-radius: 8px; 
-            font-weight: bold; 
-            border: 2px solid ${borderColor}; 
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            min-width: 100px;
-            text-align: center;
-          ">
-            <div style="font-size: 14px; margin-bottom: 2px;">${city.name}</div>
-            <div style="font-size: 11px; opacity: 0.9;">
-              ${availableTrains.length} dispo
-              ${departedTrains.length > 0 ? ` • ${departedTrains.length} passé${departedTrains.length > 1 ? 's' : ''}` : ''}
-            </div>
-          </div>
-        `,
-        iconSize: [120, 50],
-        iconAnchor: [60, 25]
-      });
-
-      const marker = L.marker(city.coordinates, { icon: cityIcon }).addTo(map);
-      
-      // Popup avec les détails des trajets
-      const popupContent = `
-        <div style="min-width: 200px;">
-          <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 16px;">${city.name}</h3>
-          <div style="margin-bottom: 8px;">
-            <span style="color: #059669; font-weight: bold;">${availableTrains.length} trajet${availableTrains.length > 1 ? 's' : ''} disponible${availableTrains.length > 1 ? 's' : ''}</span>
-            ${departedTrains.length > 0 ? `<br><span style="color: #6b7280;">${departedTrains.length} trajet${departedTrains.length > 1 ? 's' : ''} passé${departedTrains.length > 1 ? 's' : ''}</span>` : ''}
-          </div>
-          <div style="font-size: 12px; color: #6b7280;">
-            Cliquez pour voir les détails
-          </div>
-        </div>
-      `;
-      
-      marker.bindPopup(popupContent);
-      markersRef.current.push(marker);
-
-      // Ligne de connexion depuis la ville de départ
-      const line = L.polyline([departureCoords, city.coordinates], {
-        color: availableTrains.length > 0 ? '#3b82f6' : '#9ca3af',
-        weight: availableTrains.length > 0 ? 3 : 2,
-        opacity: availableTrains.length > 0 ? 0.8 : 0.4,
-        dashArray: availableTrains.length > 0 ? undefined : '5,5'
-      }).addTo(map);
-      
-      linesRef.current.push(line);
-    });
-
-    // Ajuster la vue pour voir tous les marqueurs
-    if (markersRef.current.length > 0) {
-      const group = new L.FeatureGroup(markersRef.current);
-      map.fitBounds(group.getBounds().pad(0.1));
-    }
-
-  }, [trains, departureCity]);
-
-  const isTrainAvailable = (departureTime: string) => {
-    const trainTime = new Date(departureTime);
-    return trainTime > currentTime;
-  };
-
-  const formatTime = (timeString: string) => {
-    return new Date(timeString).toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  // Grouper les trajets par ville d'arrivée avec données enrichies
-  const groupTrainsByCity = (): CityData[] => {
-    const cityGroups: { [key: string]: Train[] } = {};
-    
+    // Grouper les trajets par ville d'arrivée
+    const cityGroups: { [key: string]: any[] } = {};
     trains.forEach(train => {
-      // Extraire le nom de la ville (premier mot avant les parenthèses)
-      const cityName = train.arrivalStation.split(' ')[0];
+      const cityName = train.arrivalStation || 'Inconnue';
       if (!cityGroups[cityName]) {
         cityGroups[cityName] = [];
       }
       cityGroups[cityName].push(train);
     });
 
-    return Object.entries(cityGroups).map(([cityName, cityTrains]) => {
-      const availableTrains = cityTrains.filter(train => isTrainAvailable(train.departureTime));
-      const departedTrains = cityTrains.filter(train => !isTrainAvailable(train.departureTime));
-      
-      // Trouver les coordonnées de la ville
-      const coordinates = cityCoordinates[cityName] || cityCoordinates[cityName.toUpperCase()] || [46.603354, 1.888334];
-      
-      return {
-        name: cityName,
-        trains: cityTrains,
-        coordinates,
-        availableTrains: availableTrains.length,
-        departedTrains: departedTrains.length
-      };
-    });
-  };
+    // Marqueurs pour chaque ville de destination avec glassmorphisme
+    const processCities = async () => {
+      for (const [cityName, cityTrains] of Object.entries(cityGroups)) {
+        console.log(`🏙️ Traitement de la ville: ${cityName} (${cityTrains.length} trajets)`);
+        
+        // Récupérer les coordonnées via Google Maps API
+        const cityInfo = await getCityCoordinates(cityName);
+        
+        if (cityInfo) {
+          // Marqueur de destination avec glassmorphisme
+          const destinationIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `
+              <div style="
+                background: linear-gradient(135deg, rgba(52, 168, 83, 0.9), rgba(52, 168, 83, 0.7));
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                color: white; 
+                padding: 6px; 
+                border-radius: 50%; 
+                font-weight: 600; 
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                box-shadow: 0 6px 24px rgba(52, 168, 83, 0.3);
+                font-size: 14px;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                transform: translateZ(0);
+                transition: all 0.3s ease;
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">
+                🏙️
+              </div>
+            `,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          });
 
-  const cityData = groupTrainsByCity();
+          const destinationMarker = L.marker(cityInfo.coordinates, { icon: destinationIcon }).addTo(map);
+          
+          // Popup glassmorphisme ultra-moderne
+          const popupContent = `
+            <div style="
+              min-width: 280px; 
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+              background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+              backdrop-filter: blur(20px);
+              -webkit-backdrop-filter: blur(20px);
+              border-radius: 16px;
+              border: 1px solid rgba(255, 255, 255, 0.3);
+              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+              padding: 20px;
+              transform: translateZ(0);
+            ">
+              <div style="
+                background: linear-gradient(135deg, #34a853, #2d8f47);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 12px;
+                margin-bottom: 16px;
+                box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+              ">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.5px;">${cityName}</h3>
+                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">
+                  ${cityTrains.length} trajet${cityTrains.length > 1 ? 's' : ''} disponible${cityTrains.length > 1 ? 's' : ''}
+                </p>
+              </div>
+              
+              <div style="max-height: 160px; overflow-y: auto;">
+                ${cityTrains.slice(0, 4).map(train => `
+                  <div style="
+                    background: linear-gradient(135deg, rgba(248, 249, 250, 0.8), rgba(248, 249, 250, 0.6));
+                    backdrop-filter: blur(10px);
+                    padding: 8px 12px; 
+                    margin: 4px 0; 
+                    border-radius: 8px; 
+                    font-size: 11px; 
+                    border-left: 3px solid #34a853;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                    transition: all 0.2s ease;
+                  ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <span style="font-weight: 600; color: #1a1a1a;">
+                          ${new Date(train.departureTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span style="margin: 0 8px; color: #666;">→</span>
+                        <span style="font-weight: 600; color: #1a1a1a;">
+                          ${new Date(train.arrivalTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <span style="
+                        background: linear-gradient(135deg, #34a853, #2d8f47);
+                        color: white;
+                        padding: 2px 8px;
+                        border-radius: 12px;
+                        font-size: 10px;
+                        font-weight: 600;
+                      ">${train.price}</span>
+                    </div>
+                    <div style="margin-top: 4px; color: #666; font-size: 10px;">
+                      ${train.trainNumber} • ${train.duration}
+                    </div>
+                  </div>
+                `).join('')}
+                ${cityTrains.length > 4 ? `
+                  <div style="
+                    text-align: center; 
+                    color: #666; 
+                    font-size: 10px; 
+                    padding: 8px;
+                    background: linear-gradient(135deg, rgba(248, 249, 250, 0.5), rgba(248, 249, 250, 0.3));
+                    border-radius: 8px;
+                    margin-top: 8px;
+                  ">
+                    +${cityTrains.length - 4} autre${cityTrains.length - 4 > 1 ? 's' : ''} trajet${cityTrains.length - 4 > 1 ? 's' : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+          
+          destinationMarker.bindPopup(popupContent);
+          markersRef.current.push(destinationMarker);
+
+          // Ligne de connexion avec effet glassmorphisme
+          const line = L.polyline([departureCoords, cityInfo.coordinates], {
+            color: '#4285f4',
+            weight: 3,
+            opacity: 0.7,
+            dashArray: '10, 5',
+            className: 'connection-line'
+          }).addTo(map);
+          
+          linesRef.current.push(line);
+        }
+      }
+
+      // Ajuster la vue pour voir tous les marqueurs
+      if (markersRef.current.length > 1) {
+        const group = new L.FeatureGroup(markersRef.current);
+        map.fitBounds(group.getBounds().pad(0.1));
+      }
+    };
+
+    processCities();
+
+  }, [trains, departureCity, apiType]);
 
   return (
     <div className="space-y-6">
-      {/* Status Card macOS-style */}
-      <div className={`bg-gradient-to-r ${apiType === 'tgvmax' ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-purple-50 to-purple-100 border-purple-200'} rounded-xl p-6 border`}>
-        <div className="flex items-center justify-between">
+      {/* Header glassmorphisme */}
+      <div className="
+        bg-gradient-to-r from-blue-50/80 to-purple-50/80 
+        backdrop-blur-xl border border-white/30 
+        rounded-2xl p-6 shadow-2xl
+      ">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-1">
-              {apiType === 'tgvmax' ? 'TGVmax' : 'OUI.sncf'} - Carte de France
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              🗺️ Carte Interactive TGVmax
             </h2>
             <p className="text-gray-600">
-              {departureCity} → {selectedDate} • {cityData.length} destination{cityData.length > 1 ? 's' : ''}
+              {departureCity} → {selectedDate} • {trains.length} trajet{trains.length > 1 ? 's' : ''} trouvé{trains.length > 1 ? 's' : ''}
             </p>
           </div>
-          
-          <button
-            onClick={searchTrains}
-            disabled={loading}
-            className={`px-6 py-3 ${apiType === 'tgvmax' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-purple-500 hover:bg-purple-600'} text-white rounded-lg font-medium shadow-lg transition-all duration-200 disabled:opacity-50 flex items-center space-x-2`}
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                <span>Recherche...</span>
-              </>
-            ) : (
-              <>
-                <span>🔄</span>
-                <span>Actualiser</span>
-              </>
-            )}
-          </button>
+          <div className="
+            bg-gradient-to-br from-blue-500 to-purple-600 
+            text-white p-4 rounded-xl shadow-lg
+          ">
+            <div className="text-2xl">🚅</div>
+          </div>
         </div>
 
-        {/* API Status */}
-        {apiStatus === 'success' && (
-          <div className="mt-4 flex items-center space-x-3">
-            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span className="text-sm text-green-700 font-medium">
-              {trains.length} trajet{trains.length > 1 ? 's' : ''} disponible{trains.length > 1 ? 's' : ''} • {cityData.length} ville{cityData.length > 1 ? 's' : ''}
-            </span>
+        {/* Stats glassmorphisme */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="
+            bg-white/60 backdrop-blur-sm border border-white/30 
+            rounded-xl p-4 text-center
+          ">
+            <div className="text-2xl font-bold text-blue-600">{trains.length}</div>
+            <div className="text-xs text-gray-600">Trajets</div>
           </div>
-        )}
-        {apiStatus === 'error' && (
-          <div className="mt-4 flex items-center space-x-3">
-            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-            <span className="text-sm text-red-700 font-medium">Erreur API</span>
+          <div className="
+            bg-white/60 backdrop-blur-sm border border-white/30 
+            rounded-xl p-4 text-center
+          ">
+                      <div className="text-2xl font-bold text-green-600">
+            {trains.length > 0 ? new Set(trains.map(t => t.arrivalStation)).size : 0}
+          </div>
+            <div className="text-xs text-gray-600">Destinations</div>
+          </div>
+          <div className="
+            bg-white/60 backdrop-blur-sm border border-white/30 
+            rounded-xl p-4 text-center
+          ">
+            <div className="text-2xl font-bold text-purple-600">0€</div>
+            <div className="text-xs text-gray-600">Prix moyen</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading State glassmorphisme */}
+      {loading && (
+        <div className="
+          bg-white/80 backdrop-blur-xl border border-white/30 
+          rounded-2xl p-8 text-center shadow-2xl
+        ">
+          <div className="
+            w-16 h-16 border-4 border-blue-200 border-t-blue-500 
+            rounded-full animate-spin mx-auto mb-4
+          "></div>
+          <p className="text-gray-600 font-medium">Chargement des trajets...</p>
+        </div>
+      )}
+      
+      {/* Error State glassmorphisme */}
+      {error && (
+        <div className="
+          bg-red-50/80 backdrop-blur-xl border border-red-200/30 
+          rounded-2xl p-6 shadow-2xl
+        ">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
+      
+      {/* Carte avec glassmorphisme */}
+      <div className="
+        bg-white/80 backdrop-blur-xl border border-white/30 
+        rounded-2xl p-6 shadow-2xl
+      ">
+        <div 
+          ref={mapRef} 
+          style={{ 
+            height: '600px', 
+            width: '100%', 
+            borderRadius: '16px',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
+          }} 
+        />
+        
+        {/* Légende glassmorphisme */}
+        {trains.length > 0 && (
+          <div className="
+            mt-6 bg-white/60 backdrop-blur-sm border border-white/30 
+            rounded-xl p-4 text-center
+          ">
+            <div className="flex items-center justify-center space-x-6 text-sm">
+                          <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">🚉</div>
+              <span className="text-gray-700">Départ</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">🏙️</div>
+              <span className="text-gray-700">Destinations</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-6 h-0.5 bg-blue-500 border-dashed"></div>
+              <span className="text-gray-700">Connexions</span>
+            </div>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Loading State macOS-style */}
-      {loading && (
-        <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-200">
-          <div className={`animate-spin rounded-full h-16 w-16 border-4 ${apiType === 'tgvmax' ? 'border-blue-200 border-t-blue-500' : 'border-purple-200 border-t-purple-500'} mx-auto mb-6`}></div>
-          <p className="text-gray-600 font-medium text-lg">Recherche des trajets...</p>
-        </div>
-      )}
-
-      {/* Error State macOS-style */}
-      {error && (
-        <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-200">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-3xl">⚠️</span>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">Erreur</h3>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={searchTrains}
-            className={`px-8 py-3 ${apiType === 'tgvmax' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-purple-500 hover:bg-purple-600'} text-white rounded-lg font-medium transition-colors`}
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
-
-      {/* Map View */}
-      {!loading && !error && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Carte de France Métropolitaine</h3>
-            <p className="text-gray-600">Carte interactive avec les vraies positions géographiques</p>
-          </div>
-
-          {/* Map Container */}
-          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200">
-            <div 
-              ref={mapRef} 
-              style={{ 
-                height: '600px', 
-                width: '100%',
-                zIndex: 1
-              }}
-            ></div>
-            
-            {/* Legend */}
-            <div className="absolute bottom-4 right-4 bg-white rounded-lg p-4 shadow-lg border border-gray-200 z-[1000]">
-              <h4 className="font-semibold text-gray-900 mb-2">Légende</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-red-500 rounded"></div>
-                  <span>Ville de départ</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-500 rounded"></div>
-                  <span>Destinations disponibles</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gray-400 rounded"></div>
-                  <span>Destinations passées</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded"></div>
-                  <span>Connexions TGV</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Statistics */}
-            <div className="absolute top-4 right-4 bg-white rounded-lg p-3 shadow-lg border border-gray-200 z-[1000]">
-              <div className="text-sm font-semibold text-gray-900 mb-1">Statistiques</div>
-              <div className="text-xs text-gray-600 space-y-1">
-                <div>Total: {trains.length} trajets</div>
-                <div>Villes: {cityData.length}</div>
-                <div>Disponibles: {cityData.filter(c => c.availableTrains > 0).length}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* City Details */}
-          {trains.length > 0 && (
-            <div className="mt-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Détails par destination</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cityData.map((city) => (
-                  <div key={city.name} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-all duration-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <h5 className="font-semibold text-gray-900">{city.name}</h5>
-                      <div className="flex space-x-2">
-                        {city.availableTrains > 0 && (
-                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                            {city.availableTrains} dispo
-                          </span>
-                        )}
-                        {city.departedTrains > 0 && (
-                          <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                            {city.departedTrains} passé{city.departedTrains > 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {city.trains.slice(0, 3).map((train) => (
-                        <div key={train.id} className={`text-sm p-2 rounded ${
-                          isTrainAvailable(train.departureTime) 
-                            ? 'bg-green-50 border border-green-200' 
-                            : 'bg-gray-50 border border-gray-200 opacity-75'
-                        }`}>
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium">
-                              {formatTime(train.departureTime)} → {formatTime(train.arrivalTime)}
-                            </span>
-                            <span className="text-green-600 font-bold">{train.price}</span>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {train.trainNumber} • {train.duration}
-                          </div>
-                        </div>
-                      ))}
-                      {city.trains.length > 3 && (
-                        <div className="text-xs text-gray-500 text-center">
-                          +{city.trains.length - 3} autre{city.trains.length - 3 > 1 ? 's' : ''} trajet{city.trains.length - 3 > 1 ? 's' : ''}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Empty State macOS-style */}
-      {!loading && !error && trains.length === 0 && (
-        <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-200">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-3xl">🗺️</span>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">Aucun trajet</h3>
-          <p className="text-gray-600">
-            Aucun trajet disponible pour cette date
-          </p>
-        </div>
-      )}
     </div>
   );
 } 

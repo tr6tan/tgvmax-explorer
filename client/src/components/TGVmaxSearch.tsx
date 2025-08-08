@@ -129,7 +129,8 @@ export default function TGVmaxSearch({ departureCity, selectedDate, currentTime 
 
   const isTrainAvailable = (departureTime: string) => {
     const trainTime = new Date(departureTime);
-    return trainTime > currentTime;
+    const now = new Date();
+    return trainTime > now;
   };
 
   const formatTime = (timeString: string) => {
@@ -333,15 +334,15 @@ export default function TGVmaxSearch({ departureCity, selectedDate, currentTime 
       {!loading && !error && filteredTrains.length > 0 && (
         <div className="space-y-4">
           {filteredTrains.map((train, index) => (
-            <div 
-              key={train.id} 
-              className={`bg-white rounded-xl p-6 shadow-sm border transition-all duration-200 hover:shadow-md ${
-                isTrainAvailable(train.departureTime) 
-                  ? 'border-blue-200 hover:border-blue-300' 
-                  : 'border-gray-200 opacity-75'
-              } ${favorites.includes(train.id) ? 'ring-2 ring-yellow-400' : ''}`}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
+                         <div 
+               key={train.id} 
+               className={`bg-white rounded-xl p-6 shadow-sm border transition-all duration-200 hover:shadow-md ${
+                 isTrainAvailable(train.departureTime) 
+                   ? 'border-blue-200 hover:border-blue-300' 
+                   : 'border-red-200 bg-red-50/30 opacity-75'
+               } ${favorites.includes(train.id) ? 'ring-2 ring-yellow-400' : ''}`}
+               style={{ animationDelay: `${index * 100}ms` }}
+             >
               <div className="flex items-start justify-between">
                 {/* Train Info */}
                 <div className="flex-1">
@@ -406,11 +407,11 @@ export default function TGVmaxSearch({ departureCity, selectedDate, currentTime 
                   <div className="text-3xl font-bold text-green-600 mb-2">
                     {train.price}
                   </div>
-                  <div className={`text-sm font-medium ${
-                    isTrainAvailable(train.departureTime) ? 'text-green-600' : 'text-gray-500'
-                  }`}>
-                    {isTrainAvailable(train.departureTime) ? 'Disponible' : 'Départé'}
-                  </div>
+                                       <div className={`text-sm font-medium ${
+                       isTrainAvailable(train.departureTime) ? 'text-green-600' : 'text-red-600'
+                     }`}>
+                       {isTrainAvailable(train.departureTime) ? 'Disponible' : 'Départé'}
+                     </div>
                   
                   {/* Barre de progression pour l'occupation */}
                   {train.occupancyRate && (

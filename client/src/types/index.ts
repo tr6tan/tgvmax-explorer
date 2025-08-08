@@ -88,3 +88,9 @@ export interface CityInfo {
   description: string;
   image: string;
 } 
+
+export interface MapStats {
+  trainsCount: number;
+  destinationsCount: number;
+  lastUpdated: string;
+}

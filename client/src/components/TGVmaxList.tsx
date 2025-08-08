@@ -19,15 +19,10 @@ const TGVmaxList: React.FC<TGVmaxListProps> = ({ destinations, currentTime }) =>
 
   const isTrainPast = (departureTime: string) => {
     const departureDate = new Date(departureTime);
-    const currentHour = currentTime.getHours();
-    const currentMinute = currentTime.getMinutes();
-    const currentTimeMinutes = currentHour * 60 + currentMinute;
+    const now = new Date();
     
-    const departureHour = departureDate.getHours();
-    const departureMinute = departureDate.getMinutes();
-    const departureTimeMinutes = departureHour * 60 + departureMinute;
-    
-    return departureTimeMinutes < currentTimeMinutes;
+    // Comparer les dates complètes (année, mois, jour, heure, minute)
+    return departureDate <= now;
   };
 
   const getTrainStatus = (train: Train) => {
@@ -35,7 +30,7 @@ const TGVmaxList: React.FC<TGVmaxListProps> = ({ destinations, currentTime }) =>
     return {
       isPast: past,
       status: past ? '⏰ Passé' : '✅ Disponible',
-      statusClass: past ? 'past-train' : 'future-train'
+      statusClass: past ? 'text-red-600 bg-red-50 border-red-200' : 'text-green-600 bg-green-50 border-green-200'
     };
   };
 
@@ -85,9 +80,9 @@ const TGVmaxList: React.FC<TGVmaxListProps> = ({ destinations, currentTime }) =>
                   return (
                     <div 
                       key={train.id} 
-                      className={`p-4 rounded-lg border ${
+                      className={`p-4 rounded-lg border transition-all duration-200 ${
                         status.isPast 
-                          ? 'bg-gray-50 border-gray-200' 
+                          ? 'bg-red-50/50 border-red-200/50 opacity-75' 
                           : 'bg-blue-50 border-blue-200'
                       }`}
                     >
@@ -138,14 +133,14 @@ const TGVmaxList: React.FC<TGVmaxListProps> = ({ destinations, currentTime }) =>
                 {destination.returnTrains.map((train) => {
                   const status = getTrainStatus(train);
                   return (
-                    <div 
-                      key={train.id} 
-                      className={`p-4 rounded-lg border ${
-                        status.isPast 
-                          ? 'bg-gray-50 border-gray-200' 
-                          : 'bg-green-50 border-green-200'
-                      }`}
-                    >
+                                         <div 
+                       key={train.id} 
+                       className={`p-4 rounded-lg border transition-all duration-200 ${
+                         status.isPast 
+                           ? 'bg-red-50/50 border-red-200/50 opacity-75' 
+                           : 'bg-green-50 border-green-200'
+                       }`}
+                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">

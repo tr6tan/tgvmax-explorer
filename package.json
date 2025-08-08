@@ -9,7 +9,10 @@
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
     "install-all": "npm install && cd client && npm install",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "figma:setup": "node setup-figma-mcp.js",
+    "figma:start": "node scripts/start-figma-mcp.js",
+    "figma:generate": "node scripts/generate-figma-components.js"
   },
   "keywords": ["tgvmax", "train", "travel", "france"],
   "author": "TGVmax Explorer",

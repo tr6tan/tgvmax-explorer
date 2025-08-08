@@ -96,6 +96,658 @@
   transform: translateY(0);
 }
 
+/* iOS Calendar 26 - Apple Specifications */
+.ios-calendar-26 {
+  /* Auto layout */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px;
+  isolation: isolate;
+
+  position: relative;
+  width: 370px;
+  height: 381px;
+  left: 20px;
+  top: 20px;
+
+  filter: drop-shadow(0px 10px 60px rgba(0, 0, 0, 0.1));
+  border-radius: 13px;
+}
+
+.ios-calendar-material {
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  bottom: 0px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+  z-index: 0;
+
+  /* Regular */
+  position: absolute;
+  left: 0%;
+  right: 0%;
+  top: 0%;
+  bottom: 0%;
+
+  background: linear-gradient(0deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), rgba(255, 255, 255, 0.25);
+  background-blend-mode: color-dodge, plus-lighter;
+  backdrop-filter: blur(50px);
+  /* Note: backdrop-filter has minimal browser support */
+}
+
+.ios-calendar-header {
+  width: 370px;
+  height: 40px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 1;
+  align-self: stretch;
+  flex-grow: 0;
+  z-index: 1;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.ios-calendar-arrows {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0px;
+  gap: 28px;
+
+  position: absolute;
+  width: 58px;
+  height: 24px;
+  right: 16px;
+  top: calc(50% - 24px/2 - 1px);
+}
+
+.ios-calendar-arrow {
+  width: 15px;
+  height: 24px;
+
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 510;
+  font-size: 20px;
+  line-height: 24px;
+  /* identical to box height */
+  text-align: center;
+
+  color: #0088FF;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.ios-calendar-arrow:hover {
+  opacity: 0.7;
+}
+
+.ios-calendar-month-year {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0px;
+  gap: 4px;
+
+  position: absolute;
+  width: 98px;
+  height: 24px;
+  left: 16px;
+  top: calc(50% - 24px/2 + 5px);
+}
+
+.ios-calendar-month-text {
+  width: 84px;
+  height: 22px;
+
+  /* Body/Emphasized */
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 590;
+  font-size: 17px;
+  line-height: 22px;
+  /* identical to box height, or 129% */
+  letter-spacing: -0.43px;
+
+  color: #000000;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+}
+
+.ios-calendar-disclosure {
+  width: 10px;
+  height: 18px;
+
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 18px;
+  /* identical to box height, or 120% */
+  letter-spacing: -0.5px;
+  font-feature-settings: 'ss15' on;
+
+  color: #0088FF;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 1;
+  flex-grow: 0;
+}
+
+.ios-calendar-date-header {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0px 16px;
+  gap: 17px;
+
+  width: 370px;
+  height: 20px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 2;
+  align-self: stretch;
+  flex-grow: 0;
+  z-index: 2;
+}
+
+.ios-calendar-day-name {
+  margin: 0 auto;
+  width: 32px;
+  height: 18px;
+
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 590;
+  font-size: 13px;
+  line-height: 18px;
+  /* identical to box height, or 138% */
+  display: flex;
+  align-items: center;
+  text-align: center;
+  text-transform: uppercase;
+
+  color: rgba(60, 60, 67, 0.3);
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+}
+
+.ios-calendar-grid {
+  /* Auto layout */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 3px 0px 0px;
+  gap: 7px;
+
+  width: 370px;
+  height: 269px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 3;
+  align-self: stretch;
+  flex-grow: 0;
+  z-index: 3;
+}
+
+.ios-calendar-week {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0px 16px;
+
+  width: 370px;
+  height: 44px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  align-self: stretch;
+  flex-grow: 0;
+}
+
+.ios-calendar-day {
+  margin: 0 auto;
+  width: 44px;
+  height: 44px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ios-calendar-day-empty {
+  cursor: default;
+}
+
+.ios-calendar-day-number {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  left: calc(50% - 44px/2);
+  top: calc(50% - 44px/2);
+
+  /* Title3/Regular */
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 25px;
+  /* or 125% */
+  display: flex;
+  align-items: center;
+  text-align: center;
+  letter-spacing: -0.45px;
+
+  color: #000000;
+}
+
+.ios-calendar-day-today .ios-calendar-day-number {
+  color: #0088FF;
+}
+
+.ios-calendar-day-selected {
+  position: relative;
+}
+
+.ios-calendar-day-ellipse {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  left: calc(50% - 44px/2);
+  top: calc(50% - 44px/2);
+
+  background: #0088FF;
+  opacity: 0.12;
+  border-radius: 50%;
+}
+
+.ios-calendar-day-selected .ios-calendar-day-number {
+  font-weight: 510;
+  font-size: 24px;
+  line-height: 25px;
+  /* or 104% */
+  color: #0088FF;
+}
+
+.ios-calendar-separator {
+  /* Frame */
+  /* Auto layout */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px 16px;
+
+  width: 370px;
+  height: 11px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 6;
+  align-self: stretch;
+  flex-grow: 0;
+}
+
+.ios-calendar-separator::after {
+  content: '';
+  box-sizing: border-box;
+
+  width: 338px;
+  height: 11px;
+
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.12);
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  align-self: stretch;
+  flex-grow: 0;
+}
+
+.ios-calendar-time {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0px 16px;
+
+  width: 370px;
+  height: 52px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 4;
+  align-self: stretch;
+  flex-grow: 0;
+  z-index: 4;
+}
+
+.ios-calendar-time-title {
+  margin: 0 auto;
+  width: 136px;
+  height: 22px;
+
+  /* Body/Regular */
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 22px;
+  /* identical to box height, or 129% */
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.43px;
+
+  color: #000000;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+}
+
+.ios-calendar-time-content {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0px;
+  gap: 8px;
+
+  margin: 0 auto;
+  width: 86px;
+  height: 44px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 1;
+  flex-grow: 0;
+}
+
+.ios-calendar-time-picker {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0px;
+  gap: 6px;
+
+  width: 86px;
+  height: 34px;
+
+  border-radius: 6px;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+}
+
+.ios-calendar-time-input {
+  /* Auto layout */
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 6px 11px;
+  gap: 10px;
+
+  width: 86px;
+  height: 34px;
+
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 6px;
+  border: none;
+  outline: none;
+
+  /* Body/Regular */
+  font-family: 'SF Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 22px;
+  /* identical to box height, or 129% */
+  text-align: center;
+  letter-spacing: -0.43px;
+
+  color: #000000;
+
+  /* Inside auto layout */
+  flex: none;
+  order: 0;
+  flex-grow: 0;
+}
+
+/* iOS Calendar 26 */
+.ios-calendar {
+  padding: 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.ios-calendar:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ios-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ios-calendar-nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007AFF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.ios-calendar-nav-btn:hover {
+  background: rgba(0, 122, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.ios-calendar-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.ios-calendar-title {
+  flex: 1;
+  text-align: center;
+}
+
+.ios-calendar-month {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.ios-calendar-days-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ios-calendar-day-name {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #86868b;
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ios-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.ios-calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.ios-calendar-day:hover {
+  background: rgba(0, 122, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.ios-calendar-day:active {
+  transform: scale(0.95);
+}
+
+.ios-calendar-day-empty {
+  cursor: default;
+  background: transparent;
+}
+
+.ios-calendar-day-empty:hover {
+  background: transparent;
+  transform: none;
+}
+
+.ios-calendar-day-today {
+  background: linear-gradient(135deg, #007AFF, #5856D6);
+  color: white;
+  font-weight: 600;
+}
+
+.ios-calendar-day-today:hover {
+  background: linear-gradient(135deg, #0056CC, #4A4AC4);
+  transform: scale(1.1);
+}
+
+.ios-calendar-day-selected {
+  background: linear-gradient(135deg, #34C759, #30D158);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4);
+}
+
+.ios-calendar-day-selected:hover {
+  background: linear-gradient(135deg, #2FB350, #28C048);
+  transform: scale(1.1);
+}
+
+.ios-calendar-day-number {
+  font-size: 16px;
+  font-weight: 500;
+  z-index: 1;
+}
+
+.ios-calendar-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ios-calendar-action-btn {
+  background: linear-gradient(135deg, #007AFF, #5856D6);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.ios-calendar-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.4);
+}
+
+.ios-calendar-action-btn:active {
+  transform: translateY(0);
+}
+
 /* iOS-style Cards */
 .ios-card {
   background: white;
@@ -320,8 +972,8 @@
 }
 
 .custom-div-icon {
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: none !important;
 }
 
 .custom-div-icon div {
@@ -331,4 +983,68 @@
   justify-content: center;
   text-align: center;
   white-space: nowrap;
+}
+
+/* Map Marker Fixes */
+.leaflet-marker-icon {
+  background: transparent !important;
+}
+
+.leaflet-marker-icon img {
+  display: none !important;
+}
+
+.leaflet-marker-shadow {
+  display: none !important;
+}
+
+/* Train Status Styles */
+.past-train {
+  color: #dc2626 !important;
+  background-color: rgba(254, 242, 242, 0.8) !important;
+  border-color: rgba(252, 165, 165, 0.5) !important;
+  opacity: 0.75 !important;
+}
+
+.future-train {
+  color: #059669 !important;
+  background-color: rgba(240, 253, 244, 0.8) !important;
+  border-color: rgba(134, 239, 172, 0.5) !important;
+}
+
+/* Train card hover effects */
+.train-card-past:hover {
+  background-color: rgba(254, 242, 242, 0.9) !important;
+  border-color: rgba(252, 165, 165, 0.7) !important;
+}
+
+.train-card-future:hover {
+  background-color: rgba(240, 253, 244, 0.9) !important;
+  border-color: rgba(134, 239, 172, 0.7) !important;
+}
+
+/* Liquid Glass Calendar Input */
+.liquid-glass-calendar {
+  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.2) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 16px;
+  transition: all 0.3s ease-out;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.liquid-glass-calendar:hover {
+  background: linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.3) 100%);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.liquid-glass-calendar:focus {
+  background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.4) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.15);
+  outline: none;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.3);
 } 

@@ -1,33 +1,27 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import L from 'leaflet';
+import { Train, MapStats } from '../types';
 import 'leaflet/dist/leaflet.css';
+import MapDestinationPopup from './MapDestinationPopup';
+import RightCityPanel from './RightCityPanel';
+import StatsOverlay from './StatsOverlay';
+import SearchSettingsDock from './SearchSettingsDock';
 
-// Correction des icônes Leaflet par défaut
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-});
+// Import Leaflet
+import L from 'leaflet';
 
-interface TGVmaxMapProps {
+interface SearchSettings {
   departureCity: string;
   selectedDate: string;
-  currentTime: Date;
-  apiType: 'tgvmax' | 'ouisncf' | 'sncf-official';
 }
 
-interface Train {
-  id: string;
-  departureStation: string;
-  arrivalStation: string;
-  departureTime: string;
-  arrivalTime: string;
-  duration: string;
-  trainNumber: string;
-  platform: number;
-  price: string;
+interface TGVmaxMapProps {
+  searchSettings: SearchSettings;
+  currentTime: Date;
+  apiType: 'tgvmax' | 'ouisncf' | 'sncf-official';
+  onStats?: (stats: MapStats) => void;
+  onLoadingChange?: (loading: boolean) => void;
+  hideHeader?: boolean;
 }
 
 interface CityInfo {
@@ -36,7 +30,32 @@ interface CityInfo {
 }
 
 // Cache pour les coordonnées des villes
-const cityCache: { [key: string]: CityInfo } = {};
+const cityCache: { [key: string]: CityInfo } = {
+  // Coordonnées par défaut pour les villes principales
+  'PARIS': { name: 'Paris', coordinates: [48.8566, 2.3522] },
+  'PARIS (intramuros)': { name: 'Paris', coordinates: [48.8566, 2.3522] },
+  'LYON': { name: 'Lyon', coordinates: [45.7578, 4.8320] },
+  'MARSEILLE': { name: 'Marseille', coordinates: [43.2965, 5.3698] },
+  'BORDEAUX': { name: 'Bordeaux', coordinates: [44.8378, -0.5792] },
+  'NANTES': { name: 'Nantes', coordinates: [47.2184, -1.5536] },
+  'TOULOUSE': { name: 'Toulouse', coordinates: [43.6047, 1.4442] },
+  'LILLE': { name: 'Lille', coordinates: [50.6292, 3.0573] },
+  'STRASBOURG': { name: 'Strasbourg', coordinates: [48.5734, 7.7521] },
+  'NICE': { name: 'Nice', coordinates: [43.7102, 7.2620] },
+  'RENNES': { name: 'Rennes', coordinates: [48.1173, -1.6778] },
+  'DIJON': { name: 'Dijon', coordinates: [47.3220, 5.0415] },
+  'LAVAL': { name: 'Laval', coordinates: [48.0737, -0.7694] },
+  'BRUXELLES': { name: 'Bruxelles', coordinates: [50.8503, 4.3517] },
+  'BRUXELLES MIDI': { name: 'Bruxelles', coordinates: [50.8503, 4.3517] },
+  'BIARRITZ': { name: 'Biarritz', coordinates: [43.4831, -1.5596] },
+  'DAX': { name: 'Dax', coordinates: [43.7077, -1.0539] },
+  'ST JEAN DE LUZ CIBOURE': { name: 'Saint-Jean-de-Luz', coordinates: [43.3891, -1.6624] },
+  'FRASNE': { name: 'Frasne', coordinates: [46.8569, 6.1634] },
+  'DOLE VILLE': { name: 'Dole', coordinates: [47.0924, 5.4897] },
+  'DIJON VILLE': { name: 'Dijon', coordinates: [47.3220, 5.0415] },
+  'TGV HAUTE PICARDIE': { name: 'TGV Haute-Picardie', coordinates: [49.8728, 2.8351] },
+  'MARNE LA VALLEE CHESSY': { name: 'Marne-la-Vallée', coordinates: [48.8721, 2.7833] },
+};
 
 // Clé API Google Maps
 const GOOGLE_MAPS_API_KEY = 'AIzaSyB2JUQt8zn_2vnLr4C-87SWpfR0nufKY_Y';
@@ -45,87 +64,222 @@ const GOOGLE_MAPS_API_KEY = 'AIzaSyB2JUQt8zn_2vnLr4C-87SWpfR0nufKY_Y';
 const normalizeCityName = (cityName: string): string => {
   if (!cityName) return 'Inconnue';
   
-  // Nettoyer le nom de la ville
   let normalized = cityName
-    .replace(/\(.*?\)/g, '') // Enlever les parenthèses
-    .replace(/TGV$/i, '') // Enlever TGV à la fin
-    .replace(/ST\s+/gi, 'SAINT ') // Normaliser ST
+    .toUpperCase()
+    .replace(/\(.*?\)/g, '') // Supprimer le contenu entre parenthèses
+    .replace(/TGV$/i, '') // Supprimer "TGV" à la fin
+    .replace(/ST\s+/gi, 'SAINT ') // Remplacer "ST" par "SAINT"
     .replace(/\s+/g, ' ') // Normaliser les espaces
+    .replace(/-/g, ' ') // Remplacer les tirets par des espaces
+    .replace(/\s+/g, ' ') // Normaliser à nouveau les espaces
     .trim();
   
   return normalized;
 };
 
-// Fonction pour récupérer les coordonnées via Google Maps API
+// Fonction pour récupérer les coordonnées via Google Places API
 const getCityCoordinates = async (cityName: string): Promise<CityInfo | null> => {
   const cleanCityName = normalizeCityName(cityName);
   
-  // Vérifier le cache
+  // Vérifier d'abord le cache
   if (cityCache[cleanCityName]) {
     return cityCache[cleanCityName];
   }
 
-  try {
-    // Utiliser l'API Google Maps Geocoding
-    const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
-      params: {
-        address: `${cleanCityName}, France`,
-        key: GOOGLE_MAPS_API_KEY,
-        language: 'fr'
-      }
-    });
-
-    if (response.data.status === 'OK' && response.data.results.length > 0) {
-      const location = response.data.results[0].geometry.location;
-      const cityInfo: CityInfo = {
-        name: cleanCityName,
-        coordinates: [location.lat, location.lng]
-      };
-
-      // Mettre en cache
-      cityCache[cleanCityName] = cityInfo;
-      console.log(`✅ Coordonnées trouvées pour ${cleanCityName}: [${cityInfo.coordinates[0]}, ${cityInfo.coordinates[1]}]`);
-      
-      return cityInfo;
-    }
-  } catch (error) {
-    console.error(`❌ Erreur pour récupérer les coordonnées de ${cleanCityName}:`, error);
+  // Vérifier les coordonnées par défaut
+  const defaultCoords = cityCache[cityName.toUpperCase()];
+  if (defaultCoords) {
+    console.log(`✅ Coordonnées par défaut trouvées pour ${cityName}: [${defaultCoords.coordinates[0]}, ${defaultCoords.coordinates[1]}]`);
+    return defaultCoords;
   }
 
-  return null;
+  // Si pas trouvé, utiliser l'API Google Places
+  try {
+    console.log(`🔍 Recherche des coordonnées pour ${cityName} via Google Places API...`);
+    
+    // D'abord, chercher le place_id avec l'API Places Search
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(cityName + ', France')}&inputtype=textquery&fields=place_id&key=${GOOGLE_MAPS_API_KEY}`;
+    
+    const searchResponse = await fetch(searchUrl);
+    const searchData = await searchResponse.json();
+    
+    if (searchData.candidates && searchData.candidates.length > 0) {
+      const placeId = searchData.candidates[0].place_id;
+      console.log(`✅ Place ID trouvé pour ${cityName}: ${placeId}`);
+      
+      // Maintenant, récupérer les détails avec l'API Places Details
+      const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}?fields=id,displayName,location&key=${GOOGLE_MAPS_API_KEY}`;
+      
+      const detailsResponse = await fetch(detailsUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+          'X-Goog-FieldMask': 'id,displayName,location'
+        }
+      });
+      
+      const detailsData = await detailsResponse.json();
+      
+      if (detailsData.location) {
+        const coordinates: [number, number] = [
+          detailsData.location.latitude,
+          detailsData.location.longitude
+        ];
+        
+        const cityInfo: CityInfo = {
+          name: detailsData.displayName?.text || cityName,
+          coordinates
+        };
+        
+        // Mettre en cache
+        cityCache[cleanCityName] = cityInfo;
+        console.log(`✅ Coordonnées récupérées pour ${cityName}: [${coordinates[0]}, ${coordinates[1]}]`);
+        
+        return cityInfo;
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Erreur lors de la récupération des coordonnées pour ${cityName}:`, error);
+  }
+
+  // Si aucune coordonnée trouvée, utiliser des coordonnées par défaut pour la France
+  console.log(`⚠️ Aucune coordonnée trouvée pour ${cityName}, utilisation de coordonnées par défaut`);
+  const defaultInfo: CityInfo = {
+    name: cleanCityName,
+    coordinates: [46.603354, 1.888334] // Centre de la France
+  };
+  
+  cityCache[cleanCityName] = defaultInfo;
+  return defaultInfo;
 };
 
-export default function TGVmaxMap({ departureCity, selectedDate, currentTime, apiType }: TGVmaxMapProps) {
-  const [trains, setTrains] = useState<Train[]>([]);
+// Fonction pour filtrer les trains selon les paramètres
+const filterTrains = (trains: Train[], settings: SearchSettings): Train[] => {
+  console.log('🔍 Structure du premier train:', trains[0]);
+  
+  return trains.filter(train => {
+    console.log('🔍 Traitement du train:', train);
+    
+    // Filtre par statut (disponible/départ)
+    const trainTime = new Date(train.departureTime);
+    const now = new Date();
+    
+    console.log('🔍 Heure du train:', trainTime, 'vs maintenant:', now);
+    
+    // Toujours exclure les trains qui sont déjà partis
+    if (trainTime <= now) {
+      console.log('❌ Train filtré: déjà parti');
+      return false;
+    }
+
+    console.log('✅ Train accepté');
+    return true;
+  });
+};
+
+export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStats, onLoadingChange, hideHeader = false }: TGVmaxMapProps) {
+  const [allTrains, setAllTrains] = useState<Train[]>([]);
+  const [filteredTrains, setFilteredTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const linesRef = useRef<L.Polyline[]>([]);
+  
+  // États pour les filtres et le panneau
+  const [filter, setFilter] = useState<'all' | 'available' | 'departed'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | 'morning' | 'afternoon' | 'evening'>('all');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCityTrains, setSelectedCityTrains] = useState<Train[]>([]);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  // Debug: Log des props reçues
+  console.log('🗺️ TGVmaxMap props:', { searchSettings, apiType, hideHeader });
 
   // 1. Initialisation de la carte centrée sur la France
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    console.log('🗺️ Initialisation de la carte...');
+    console.log('🗺️ mapRef.current:', mapRef.current);
+    console.log('🗺️ mapInstanceRef.current:', mapInstanceRef.current);
     
-    // Centrer sur la France avec un zoom approprié
-    const map = L.map(mapRef.current).setView([46.603354, 1.888334], 6);
+    if (!mapRef.current) {
+      console.log('❌ mapRef.current est null');
+      return;
+    }
     
-    // Style carte moderne avec glassmorphisme
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 18
-    }).addTo(map);
+    if (mapInstanceRef.current) {
+      console.log('❌ Carte déjà initialisée');
+      return;
+    }
     
-    mapInstanceRef.current = map;
+    console.log('🗺️ Création de la carte Leaflet...');
     
-    // Forcer le refresh de la carte
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
+    // Ajouter le style personnalisé pour les popups Leaflet
+    const style = document.createElement('style');
+    style.textContent = `
+      .leaflet-popup-content-wrapper {
+        background: transparent !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        border: none !important;
+      }
+      .leaflet-popup-content {
+        margin: 0 !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+      }
+      .leaflet-popup-tip {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      .leaflet-popup-close-button {
+        display: none !important;
+      }
+      .leaflet-popup {
+        background: transparent !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    try {
+      const map = L.map(mapRef.current, { 
+        zoomControl: true,
+        center: [46.603354, 1.888334],
+        zoom: 6
+      });
+      
+      console.log('🗺️ Ajout de la couche de tuiles...');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+      }).addTo(map);
+      
+      mapInstanceRef.current = map;
+      console.log('✅ Carte initialisée avec succès');
+      
+      // Forcer le refresh de la carte après un délai
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          console.log('🗺️ Refresh de la carte...');
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 300);
+      
+      // Second refresh pour s'assurer que la carte s'affiche
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          console.log('🗺️ Second refresh de la carte...');
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'initialisation de la carte:', error);
+    }
 
     return () => {
+      console.log('🗺️ Nettoyage de la carte...');
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -135,8 +289,13 @@ export default function TGVmaxMap({ departureCity, selectedDate, currentTime, ap
 
   // 2. Chargement des trajets
   const fetchTrains = useCallback(async () => {
+    console.log('🚂 Chargement des trajets...');
+    console.log('🚂 Paramètres:', { departureCity: searchSettings.departureCity, date: searchSettings.selectedDate });
+    
     setLoading(true);
+    if (onLoadingChange) onLoadingChange(true);
     setError(null);
+    
     try {
       let endpoint;
       if (apiType === 'tgvmax') {
@@ -147,82 +306,342 @@ export default function TGVmaxMap({ departureCity, selectedDate, currentTime, ap
         endpoint = '/api/sncf-official/journeys';
       }
       
+      console.log('🚂 Appel API:', `http://localhost:4000${endpoint}`);
+      
       const response = await axios.get(`http://localhost:4000${endpoint}`, {
-        params: { from: departureCity, date: selectedDate }
+        params: { from: searchSettings.departureCity, date: searchSettings.selectedDate }
       });
       
+      console.log('🚂 Réponse API:', response.data);
+      
       if (response.data.success) {
-        setTrains(response.data.trains || []);
-        console.log(`✅ ${response.data.trains?.length || 0} trajets chargés`);
+        const fetchedTrains = response.data.trains || [];
+        console.log('🚂 Premier train de l\'API:', fetchedTrains[0]);
+        console.log('🚂 Structure des trains:', fetchedTrains.slice(0, 3));
+        setAllTrains(fetchedTrains);
+        console.log(`✅ ${fetchedTrains.length} trajets chargés`);
       } else {
+        console.error('❌ Erreur API:', response.data);
         setError('Erreur lors du chargement des trajets');
       }
     } catch (err) {
-      console.error('Erreur API:', err);
+      console.error('❌ Erreur API:', err);
       setError('Erreur lors du chargement des trajets');
     } finally {
       setLoading(false);
+      if (onLoadingChange) onLoadingChange(false);
     }
-  }, [departureCity, selectedDate, apiType]);
+  }, [searchSettings.departureCity, searchSettings.selectedDate, apiType, onLoadingChange]);
 
+  // 3. Filtrer les trains selon les paramètres
   useEffect(() => {
-    if (departureCity && selectedDate) {
-      fetchTrains();
-    }
-  }, [departureCity, selectedDate, apiType, fetchTrains]);
-
-  // 3. Affichage des marqueurs et lignes avec glassmorphisme
-  useEffect(() => {
-    if (!mapInstanceRef.current || trains.length === 0) return;
+    console.log('🔍 Filtrage des trains...');
+    console.log('🔍 allTrains:', allTrains.length);
+    console.log('🔍 searchSettings:', searchSettings);
     
-    console.log(`🗺️ Affichage de ${trains.length} trajets sur la carte`);
+    // Temporairement désactiver le filtrage pour debug
+    // const filtered = filterTrains(allTrains, searchSettings);
+    const filtered = allTrains; // Utiliser tous les trains pour debug
+    setFilteredTrains(filtered);
+    console.log(`🔍 ${filtered.length} trajets filtrés sur ${allTrains.length} total (filtrage désactivé)`);
+  }, [allTrains, searchSettings]);
+
+  // 4. Charger les trajets quand les paramètres changent
+  useEffect(() => {
+    console.log('🚂 Vérification des paramètres pour charger les trajets...');
+    console.log('🚂 departureCity:', searchSettings.departureCity);
+    console.log('🚂 selectedDate:', searchSettings.selectedDate);
+    
+    if (searchSettings.departureCity && searchSettings.selectedDate) {
+      console.log('🚂 Paramètres valides, chargement des trajets...');
+      fetchTrains();
+    } else {
+      console.log('❌ Paramètres manquants pour charger les trajets');
+    }
+  }, [searchSettings.departureCity, searchSettings.selectedDate, apiType, fetchTrains]);
+
+  // 5. Remonter les statistiques vers le parent
+  useEffect(() => {
+    if (!onStats) return;
+    const destinationsCount = filteredTrains.length > 0 ? new Set(filteredTrains.map(t => t.arrivalStation)).size : 0;
+    onStats({
+      trainsCount: filteredTrains.length,
+      destinationsCount,
+      lastUpdated: new Date().toISOString(),
+    });
+  }, [filteredTrains, onStats]);
+
+  // 6. Recentrer la carte sur la ville de départ quand elle change
+  useEffect(() => {
+    if (mapInstanceRef.current && searchSettings.departureCity) {
+      const getDepartureCoordinates = (cityName: string): [number, number] => {
+        const normalizedCity = cityName.toUpperCase();
+        const cityCoordinates: { [key: string]: [number, number] } = {
+          'PARIS': [48.8566, 2.3522],
+          'PARIS (intramuros)': [48.8566, 2.3522],
+          'LYON': [45.7578, 4.8320],
+          'LYON (intramuros)': [45.7578, 4.8320],
+          'MARSEILLE': [43.2965, 5.3698],
+          'BORDEAUX': [44.8378, -0.5792],
+          'NANTES': [47.2184, -1.5536],
+          'TOULOUSE': [43.6047, 1.4442],
+          'LILLE': [50.6292, 3.0573],
+          'STRASBOURG': [48.5734, 7.7521],
+          'NICE': [43.7102, 7.2620],
+          'RENNES': [48.1173, -1.6778],
+          'DIJON': [47.3220, 5.0415],
+          'LAVAL': [48.0737, -0.7694],
+          'BRUXELLES': [50.8503, 4.3517],
+          'BRUXELLES MIDI': [50.8503, 4.3517],
+          'BIARRITZ': [43.4831, -1.5596],
+          'DAX': [43.7077, -1.0539],
+          'ST JEAN DE LUZ CIBOURE': [43.3891, -1.6624],
+          'FRASNE': [46.8569, 6.1634],
+          'DOLE VILLE': [47.0924, 5.4897],
+          'DIJON VILLE': [47.3220, 5.0415],
+          'TGV HAUTE PICARDIE': [49.8728, 2.8351],
+          'MARNE LA VALLEE CHESSY': [48.8721, 2.7833],
+        };
+        return cityCoordinates[normalizedCity] || [48.8566, 2.3522];
+      };
+      
+      const newCoords = getDepartureCoordinates(searchSettings.departureCity);
+      console.log('🗺️ Recentrage de la carte sur', searchSettings.departureCity, ':', newCoords);
+      mapInstanceRef.current.setView(newCoords, 8);
+    }
+  }, [searchSettings.departureCity]);
+
+  // 7. Forcer le rafraîchissement de la carte quand la date change
+  useEffect(() => {
+    if (mapInstanceRef.current && searchSettings.selectedDate) {
+      console.log('🗺️ Rafraîchissement de la carte pour la nouvelle date:', searchSettings.selectedDate);
+      // Forcer le rafraîchissement de la carte
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 100);
+    }
+  }, [searchSettings.selectedDate]);
+
+  // 8. Affichage des marqueurs et lignes avec style iOS 26 minimal
+  useEffect(() => {
+    console.log('🗺️ Affichage des marqueurs...');
+    console.log('🗺️ mapInstanceRef.current:', mapInstanceRef.current);
+    console.log('🗺️ filteredTrains.length:', filteredTrains.length);
+    console.log('🗺️ Date sélectionnée:', searchSettings.selectedDate);
+    
+    if (!mapInstanceRef.current) {
+      console.log('❌ Carte non initialisée');
+      return;
+    }
+    
+    // Vérifier que la carte est complètement initialisée
+    if (!mapInstanceRef.current.getPane) {
+      console.log('❌ Carte pas encore prête, attente...');
+      return;
+    }
+    
+    if (filteredTrains.length === 0) {
+      console.log('❌ Aucun train à afficher');
+      return;
+    }
+    
+    console.log(`🗺️ Affichage de ${filteredTrains.length} trajets filtrés sur la carte`);
     
     // Nettoyage des anciens marqueurs et lignes
-    markersRef.current.forEach(marker => marker.remove());
-    linesRef.current.forEach(line => line.remove());
+    markersRef.current.forEach(marker => {
+      if (marker && mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.removeLayer(marker);
+        } catch (error) {
+          console.log('⚠️ Erreur lors du nettoyage du marqueur:', error);
+        }
+      }
+    });
+    linesRef.current.forEach(line => {
+      if (line && mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.removeLayer(line);
+        } catch (error) {
+          console.log('⚠️ Erreur lors du nettoyage de la ligne:', error);
+        }
+      }
+    });
     markersRef.current = [];
     linesRef.current = [];
 
     const map = mapInstanceRef.current;
-    const departureCoords = cityCache[departureCity.toUpperCase()]?.coordinates || [48.8566, 2.3522];
+    
+    // Coordonnées de départ - utiliser la ville sélectionnée
+    const getDepartureCoordinates = (cityName: string): [number, number] => {
+      const normalizedCity = normalizeCityName(cityName);
+      
+      // Coordonnées prédéfinies pour les villes principales
+      const cityCoordinates: { [key: string]: [number, number] } = {
+        'PARIS': [48.8566, 2.3522],
+        'PARIS INTRAMUROS': [48.8566, 2.3522],
+        'LYON': [45.7578, 4.8320],
+        'LYON INTRAMUROS': [45.7578, 4.8320],
+        'MARSEILLE': [43.2965, 5.3698],
+        'BORDEAUX': [44.8378, -0.5792],
+        'NANTES': [47.2184, -1.5536],
+        'TOULOUSE': [43.6047, 1.4442],
+        'LILLE': [50.6292, 3.0573],
+        'STRASBOURG': [48.5734, 7.7521],
+        'NICE': [43.7102, 7.2620],
+        'RENNES': [48.1173, -1.6778],
+        'DIJON': [47.3220, 5.0415],
+        'LAVAL': [48.0737, -0.7694],
+        'BRUXELLES': [50.8503, 4.3517],
+        'BRUXELLES MIDI': [50.8503, 4.3517],
+        'BIARRITZ': [43.4831, -1.5596],
+        'DAX': [43.7077, -1.0539],
+        'SAINT JEAN DE LUZ CIBOURE': [43.3891, -1.6624],
+        'FRASNE': [46.8569, 6.1634],
+        'DOLE VILLE': [47.0924, 5.4897],
+        'DIJON VILLE': [47.3220, 5.0415],
+        'TGV HAUTE PICARDIE': [49.8728, 2.8351],
+        'MARNE LA VALLEE CHESSY': [48.8721, 2.7833],
+        'POITIERS': [46.5802, 0.3404],
+        'LIMOGES': [45.8336, 1.2611],
+        'BRIVE LA GAILLARDE': [45.1589, 1.5333],
+        'TULLE': [45.2673, 1.7684],
+        'PERIGUEUX': [45.1911, 0.7189],
+        'BERGERAC': [44.8511, 0.4819],
+        'AGEN': [44.2014, 0.6292],
+        'MONTPELLIER': [43.6108, 3.8767],
+        'MONTPELLIER SUD DE FRANCE': [43.6108, 3.8767],
+        'NIMES': [43.8367, 4.3601],
+        'NIMES PONT DU GARD': [43.8367, 4.3601],
+        'AVIGNON': [43.9493, 4.8055],
+        'AVIGNON TGV': [43.9493, 4.8055],
+        'AIX EN PROVENCE': [43.5297, 5.4474],
+        'CANNES': [43.5528, 7.0174],
+        'ANTIBES': [43.5804, 7.1251],
+        'GRASSE': [43.6588, 6.9244],
+        'SAINT PIERRE DES CORPS': [47.3900, 0.6892],
+        'VALENCIENNES': [50.3591, 3.5240],
+        'MONTBARD': [47.6228, 4.3370],
+        'NIORT': [46.3237, -0.4588],
+        'SURGERES': [46.1089, -0.7519],
+        'VENDOME VILLIERS SUR LOIR': [47.7936, 1.0653],
+        'TOURS': [47.2184, 0.7055],
+        'ANGERS': [47.4784, -0.5632],
+        'LE MANS': [48.0061, 0.1996],
+        // Nouvelles villes avec noms complexes
+        'LA ROCHELLE VILLE': [46.1591, -1.1520],
+        'CHAMBERY CHALLES LES EAUX': [45.5646, 5.9262],
+        'LE CROISIC': [47.2919, -2.5138],
+        'LA BAULE ESCOUBLAC': [47.2861, -2.3920],
+        'GUINGAMP': [48.5634, -3.1508],
+        'MORLAIX': [48.5774, -3.8292],
+        'BETHUNE': [50.5294, 2.6404],
+        'BREST': [48.3904, -4.4861],
+        'LANDERNEAU': [48.4489, -4.2475],
+        'ANNECY': [45.8992, 6.1294],
+        'LE CREUSOT MONTCEAU MONTCHANIN': [46.8061, 4.4163],
+        'ST MAIXENT (DEUX SEVRES)': [46.3237, -0.4588],
+        'MULHOUSE': [47.7508, 7.3359],
+        'MULHOUSE VILLE': [47.7508, 7.3359],
+        'BELFORT': [47.6381, 6.8638],
+        'BELFORT MONTBELIARD TGV': [47.6381, 6.8638],
+        'BESANCON': [47.2378, 6.0241],
+        'BESANCON VIOTTE': [47.2378, 6.0241],
+        'CHALON SUR SAONE': [46.7798, 4.8538],
+        'MACON': [46.3078, 4.8308],
+        'VILLEURBANNE': [45.7640, 4.8357],
+        'ST ETIENNE': [45.4397, 4.3872],
+        'CLERMONT FERRAND': [45.7772, 3.0870],
+        'VICHY': [46.1271, 3.4260],
+        'MOULINS': [46.5647, 3.3324],
+        'NEVERS': [46.9896, 3.1597],
+        'COSNE SUR LOIRE': [47.4111, 2.9281],
+        'AUXERRE': [47.7982, 3.5738],
+        'SENS': [48.1974, 3.2820],
+        'LAROCHE MIGENNES': [47.8731, 3.4980],
+        'TROYES': [48.2973, 4.0744],
+        'REIMS': [49.2583, 4.0317],
+        'EPERNAY': [49.0434, 3.9590],
+        'CHALONS EN CHAMPAGNE': [48.9562, 4.3634],
+        'CHAMPAGNE ARDENNE TGV': [48.9562, 4.3634],
+        'VITRY LE FRANCOIS': [48.7246, 4.5846],
+        'BAR LE DUC': [48.7727, 5.1610],
+        'NANCY': [48.6921, 6.1844],
+        'METZ': [49.1193, 6.1757],
+        'THIONVILLE': [49.3578, 6.1694],
+        'LUXEMBOURG': [49.6116, 6.1319],
+        'DOUAI': [50.3704, 3.0790],
+        'ARRAS': [50.2930, 2.7789],
+        'AMIENS': [49.8941, 2.2958],
+        'BEAUVAIS': [49.4294, 2.0810],
+        'COMPIEGNE': [49.4179, 2.8231],
+        'CREIL': [49.2578, 2.4789],
+        'PONTOISE': [49.0496, 2.0990],
+        'PARIS NORD': [48.8805, 2.3553],
+        'PARIS EST': [48.8768, 2.3592],
+        'PARIS LYON': [48.8444, 2.3736],
+        'PARIS AUSTERLITZ': [48.8419, 2.3644],
+        'PARIS MONTPARNASSE': [48.8404, 2.3225],
+        'PARIS SAINT LAZARE': [48.8759, 2.3245],
+        'AIX LES BAINS LE REVARD': [45.6889, 5.9153],
+      };
+      
+      console.log('🔍 Recherche coordonnées pour:', cityName, '→ Normalisé:', normalizedCity);
+      const coords = cityCoordinates[normalizedCity];
+      if (coords) {
+        console.log('✅ Coordonnées trouvées:', coords);
+      } else {
+        console.log('❌ Coordonnées non trouvées, utilisation de Paris par défaut');
+      }
+      
+      return coords || [48.8566, 2.3522]; // Paris par défaut si ville non trouvée
+    };
+    
+    const departureCoords = getDepartureCoordinates(searchSettings.departureCity);
+    console.log('🗺️ Coordonnées de départ pour', searchSettings.departureCity, ':', departureCoords);
 
-    // Marqueur de départ avec glassmorphisme
+    // Marqueur de départ - point bleu avec icône train personnalisée
     const departureIcon = L.divIcon({
       className: 'custom-div-icon',
-                html: `
-            <div style="
-              background: linear-gradient(135deg, rgba(66, 133, 244, 0.9), rgba(66, 133, 244, 0.7));
-              backdrop-filter: blur(10px);
-              -webkit-backdrop-filter: blur(10px);
-              color: white; 
-              padding: 8px; 
-              border-radius: 50%; 
-              font-weight: 600; 
-              border: 1px solid rgba(255, 255, 255, 0.3);
-              box-shadow: 0 8px 32px rgba(66, 133, 244, 0.3);
-              font-size: 16px;
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-              backdrop-filter: blur(10px);
-              transform: translateZ(0);
-              width: 32px;
-              height: 32px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            ">
-              🚉
-            </div>
-          `,
-              iconSize: [32, 32],
-        iconAnchor: [16, 16]
+      html: `
+        <div style="
+          width: 32px;
+          height: 32px;
+          background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+          border-radius: 50%;
+          border: 3px solid rgba(59, 130, 246, 0.3);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 600;
+          z-index: 1000;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        ">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19.99 15.0008H1C0.734784 15.0008 0.48043 15.1062 0.292893 15.2937C0.105357 15.4812 0 15.7356 0 16.0008C0 16.266 0.105357 16.5204 0.292893 16.7079C0.48043 16.8955 0.734784 17.0008 1 17.0008H19.99C20.618 17.0019 21.2375 16.8551 21.7982 16.5723C22.359 16.2896 22.8452 15.8787 23.2177 15.373C23.5901 14.8674 23.8383 14.2811 23.9421 13.6618C24.0458 13.0424 24.0023 12.4073 23.815 11.8078C22.9307 8.95869 21.1556 6.46842 18.7508 4.70313C16.3459 2.93784 13.4382 1.99065 10.455 2.00081H1C0.734784 2.00081 0.48043 2.10617 0.292893 2.29371C0.105357 2.48124 0 2.7356 0 3.00081C0 3.26603 0.105357 3.52038 0.292893 3.70792C0.48043 3.89546 0.734784 4.00081 1 4.00081H4V7.00081H1C0.734784 7.00081 0.48043 7.10617 0.292893 7.29371C0.105357 7.48124 0 7.7356 0 8.00081C0 8.26603 0.105357 8.52038 0.292893 8.70792C0.48043 8.89546 0.734784 9.00081 1 9.00081H20.213C20.9545 10.0393 21.5263 11.1889 21.907 12.4068C22.0014 12.7049 22.0234 13.0212 21.9712 13.3296C21.9191 13.6379 21.7942 13.9293 21.607 14.1798C21.4217 14.4349 21.1785 14.6423 20.8973 14.785C20.6162 14.9277 20.3053 15.0017 19.99 15.0008ZM9 7.00081H6V4.00081H9V7.00081ZM11 7.00081V4.02281C13.7373 4.13719 16.3523 5.18854 18.407 7.00081H11Z" fill="white"/>
+            <path d="M23 20.0006H1C0.734784 20.0006 0.48043 20.106 0.292893 20.2935C0.105357 20.481 0 20.7354 0 21.0006C0 21.2658 0.105357 21.5202 0.292893 21.7077C0.48043 21.8953 0.734784 22.0006 1 22.0006H23C23.2652 22.0006 23.5196 21.8953 23.7071 21.7077C23.8946 21.5202 24 21.2658 24 21.0006C24 20.7354 23.8946 20.481 23.7071 20.2935C23.5196 20.106 23.2652 20.0006 23 20.0006Z" fill="white"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
 
-    const departureMarker = L.marker(departureCoords, { icon: departureIcon }).addTo(map);
-    markersRef.current.push(departureMarker);
+    try {
+      const departureMarker = L.marker(departureCoords, { icon: departureIcon }).addTo(map);
+      markersRef.current.push(departureMarker);
+      console.log('✅ Marqueur de départ ajouté');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'ajout du marqueur de départ:', error);
+    }
 
     // Grouper les trajets par ville d'arrivée
     const cityGroups: { [key: string]: any[] } = {};
-    trains.forEach(train => {
+    filteredTrains.forEach(train => {
       const cityName = train.arrivalStation || 'Inconnue';
       if (!cityGroups[cityName]) {
         cityGroups[cityName] = [];
@@ -230,204 +649,551 @@ export default function TGVmaxMap({ departureCity, selectedDate, currentTime, ap
       cityGroups[cityName].push(train);
     });
 
-    // Marqueurs pour chaque ville de destination avec glassmorphisme
+    console.log('🏙️ Villes de destination:', Object.keys(cityGroups));
+    console.log('🏙️ Détail des groupes:', cityGroups);
+
+    // Marqueurs pour chaque ville de destination - points verts avec icône personnalisée
     const processCities = async () => {
       for (const [cityName, cityTrains] of Object.entries(cityGroups)) {
         console.log(`🏙️ Traitement de la ville: ${cityName} (${cityTrains.length} trajets)`);
         
-        // Récupérer les coordonnées via Google Maps API
-        const cityInfo = await getCityCoordinates(cityName);
+        // Variable pour stocker les coordonnées de la ville
+        let cityCoords: [number, number] | null = null;
         
-        if (cityInfo) {
-          // Marqueur de destination avec glassmorphisme
-          const destinationIcon = L.divIcon({
-            className: 'custom-div-icon',
-            html: `
-              <div style="
-                background: linear-gradient(135deg, rgba(52, 168, 83, 0.9), rgba(52, 168, 83, 0.7));
-                backdrop-filter: blur(10px);
-                -webkit-backdrop-filter: blur(10px);
-                color: white; 
-                padding: 6px; 
-                border-radius: 50%; 
-                font-weight: 600; 
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                box-shadow: 0 6px 24px rgba(52, 168, 83, 0.3);
-                font-size: 14px;
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                transform: translateZ(0);
-                transition: all 0.3s ease;
-                width: 28px;
-                height: 28px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-              ">
-                🏙️
-              </div>
-            `,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14]
-          });
-
-          const destinationMarker = L.marker(cityInfo.coordinates, { icon: destinationIcon }).addTo(map);
+        // Coordonnées prédéfinies pour les villes principales
+        const cityCoordinates: { [key: string]: [number, number] } = {
+          'LAVAL': [48.0737, -0.7694],
+          'DIJON VILLE': [47.3220, 5.0415],
+          'DOLE VILLE': [47.0924, 5.4897],
+          'FRASNE': [46.8569, 6.1634],
+          'BRUXELLES MIDI': [50.8503, 4.3517],
+          'TGV HAUTE PICARDIE': [49.8728, 2.8351],
+          'MARNE LA VALLEE CHESSY': [48.8721, 2.7833],
+          'BIARRITZ': [43.4831, -1.5596],
+          'DAX': [43.7077, -1.0539],
+          'ST JEAN DE LUZ CIBOURE': [43.3891, -1.6624],
+          'LYON (intramuros)': [45.7578, 4.8320],
+          'RENNES': [48.1173, -1.6778],
+          'ST PIERRE DES CORPS': [47.3900, 0.6892],
+          'VALENCIENNES': [50.3591, 3.5240],
+          'MONTBARD': [47.6228, 4.3370],
+          'NIORT': [46.3237, -0.4588],
+          'SURGERES': [46.1089, -0.7519],
+          'VENDOME VILLIERS SUR LOIR': [47.7936, 1.0653],
+          'TOURS': [47.2184, 0.7055],
+          'ANGERS': [47.4784, -0.5632],
+          'LE MANS': [48.0061, 0.1996],
+          'NANTES': [47.2184, -1.5536],
+          'BORDEAUX': [44.8378, -0.5792],
+          'POITIERS': [46.5802, 0.3404],
+          'LIMOGES': [45.8336, 1.2611],
+          'BRIVE LA GAILLARDE': [45.1589, 1.5333],
+          'TULLE': [45.2673, 1.7684],
+          'PERIGUEUX': [45.1911, 0.7189],
+          'BERGERAC': [44.8511, 0.4819],
+          'AGEN': [44.2014, 0.6292],
+          'TOULOUSE': [43.6047, 1.4442],
+          'MONTPELLIER': [43.6108, 3.8767],
+          'MONTPELLIER SUD DE FRANCE': [43.6108, 3.8767],
+          'NIMES': [43.8367, 4.3601],
+          'NIMES PONT DU GARD': [43.8367, 4.3601],
+          'AVIGNON': [43.9493, 4.8055],
+          'AVIGNON TGV': [43.9493, 4.8055],
+          'AIX EN PROVENCE': [43.5297, 5.4474],
+          'MARSEILLE': [43.2965, 5.3698],
+          'NICE': [43.7102, 7.2620],
+          'CANNES': [43.5528, 7.0174],
+          'ANTIBES': [43.5804, 7.1251],
+          'GRASSE': [43.6588, 6.9244],
+          'STRASBOURG': [48.5734, 7.7521],
+          'MULHOUSE': [47.7508, 7.3359],
+          'MULHOUSE VILLE': [47.7508, 7.3359],
+          'BELFORT': [47.6381, 6.8638],
+          'BELFORT MONTBELIARD TGV': [47.6381, 6.8638],
+          'BESANCON': [47.2378, 6.0241],
+          'BESANCON VIOTTE': [47.2378, 6.0241],
+          'DIJON': [47.3220, 5.0415],
+          'CHALON SUR SAONE': [46.7798, 4.8538],
+          'MACON': [46.3078, 4.8308],
+          'VILLEURBANNE': [45.7640, 4.8357],
+          'ST ETIENNE': [45.4397, 4.3872],
+          'CLERMONT FERRAND': [45.7772, 3.0870],
+          'VICHY': [46.1271, 3.4260],
+          'MOULINS': [46.5647, 3.3324],
+          'NEVERS': [46.9896, 3.1597],
+          'COSNE SUR LOIRE': [47.4111, 2.9281],
+          'AUXERRE': [47.7982, 3.5738],
+          'SENS': [48.1974, 3.2820],
+          'LAROCHE MIGENNES': [47.8731, 3.4980],
+          'TROYES': [48.2973, 4.0744],
+          'REIMS': [49.2583, 4.0317],
+          'EPERNAY': [49.0434, 3.9590],
+          'CHALONS EN CHAMPAGNE': [48.9562, 4.3634],
+          'CHAMPAGNE ARDENNE TGV': [48.9562, 4.3634],
+          'VITRY LE FRANCOIS': [48.7246, 4.5846],
+          'BAR LE DUC': [48.7727, 5.1610],
+          'NANCY': [48.6921, 6.1844],
+          'METZ': [49.1193, 6.1757],
+          'THIONVILLE': [49.3578, 6.1694],
+          'LUXEMBOURG': [49.6116, 6.1319],
+          'BRUXELLES': [50.8503, 4.3517],
+          'LILLE': [50.6292, 3.0573],
+          'DOUAI': [50.3704, 3.0790],
+          'ARRAS': [50.2930, 2.7789],
+          'AMIENS': [49.8941, 2.2958],
+          'BEAUVAIS': [49.4294, 2.0810],
+          'COMPIEGNE': [49.4179, 2.8231],
+          'CREIL': [49.2578, 2.4789],
+          'PONTOISE': [49.0496, 2.0990],
+          'PARIS NORD': [48.8805, 2.3553],
+          'PARIS EST': [48.8768, 2.3592],
+          'PARIS LYON': [48.8444, 2.3736],
+          'PARIS AUSTERLITZ': [48.8419, 2.3644],
+          'PARIS MONTPARNASSE': [48.8404, 2.3225],
+          'PARIS SAINT LAZARE': [48.8759, 2.3245],
+          // Nouvelles coordonnées ajoutées
+          'LA ROCHELLE VILLE': [46.1591, -1.1520],
+          'CHAMBERY CHALLES LES EAUX': [45.5646, 5.9262],
+          'LE CROISIC': [47.2919, -2.5138],
+          'LA BAULE ESCOUBLAC': [47.2861, -2.3920],
+          'GUINGAMP': [48.5634, -3.1508],
+          'MORLAIX': [48.5774, -3.8292],
+          'BETHUNE': [50.5294, 2.6404],
+          'BREST': [48.3904, -4.4861],
+          'LANDERNEAU': [48.4489, -4.2475],
+          'ANNECY': [45.8992, 6.1294],
+          'LE CREUSOT MONTCEAU MONTCHANIN': [46.8061, 4.4163],
+        };
+        
+        // Vérifier d'abord dans la base locale
+        if (cityCoordinates[cityName]) {
+          cityCoords = cityCoordinates[cityName];
+          console.log(`✅ Coordonnées locales trouvées pour ${cityName}:`, cityCoords);
+        } else {
+          // Si pas dans la base locale, utiliser notre proxy serveur pour l'API Google Places
+          console.log(`🔍 Recherche des coordonnées pour ${cityName} via notre proxy serveur...`);
           
-          // Popup glassmorphisme ultra-moderne
-          const popupContent = `
+          try {
+            const response = await fetch(`http://localhost:4000/api/google-places/search-city?cityName=${encodeURIComponent(cityName)}`);
+            const data = await response.json();
+            
+            if (data.success && data.coordinates) {
+              cityCoords = [
+                data.coordinates.latitude,
+                data.coordinates.longitude
+              ];
+              
+              console.log(`✅ Coordonnées API trouvées pour ${cityName}: [${cityCoords[0]}, ${cityCoords[1]}]`);
+              console.log(`📍 Nom affiché: ${data.cityName}`);
+            } else {
+              console.log(`❌ Aucune coordonnée trouvée pour ${cityName}: ${data.error || 'Erreur inconnue'}`);
+            }
+          } catch (error) {
+            console.error(`❌ Erreur lors de la récupération des coordonnées pour ${cityName}:`, error);
+          }
+        }
+        
+        // Créer le marqueur seulement si les coordonnées sont trouvées
+        if (cityCoords) {
+          // Vérifier si tous les trajets sont passés
+          const allTrainsPast = cityTrains.every(train => new Date(train.departureTime) <= new Date());
+          const someTrainsPast = cityTrains.some(train => new Date(train.departureTime) <= new Date());
+          
+          // Marqueur de destination - point liquid glass avec couleur conditionnelle
+          const destinationIcon = L.divIcon({
+          className: 'custom-div-icon',
+          html: `
             <div style="
-              min-width: 280px; 
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-              background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
-              backdrop-filter: blur(20px);
-              -webkit-backdrop-filter: blur(20px);
-              border-radius: 16px;
-              border: 1px solid rgba(255, 255, 255, 0.3);
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-              padding: 20px;
-              transform: translateZ(0);
+              width: 24px;
+              height: 24px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              transition: all 0.3s ease;
+              z-index: 9999;
+              position: relative;
+              background: transparent;
             ">
               <div style="
-                background: linear-gradient(135deg, #34a853, #2d8f47);
-                color: white;
-                padding: 12px 16px;
-                border-radius: 12px;
-                margin-bottom: 16px;
-                box-shadow: 0 4px 12px rgba(52, 168, 83, 0.3);
+                width: 16px;
+                height: 16px;
+                background: ${allTrainsPast 
+                  ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.9) 100%)' 
+                  : someTrainsPast 
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.9) 100%)'
+                    : 'linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.9) 100%)'};
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                border: 2px solid rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                box-shadow: 
+                  0 4px 12px ${allTrainsPast 
+                    ? 'rgba(239, 68, 68, 0.4)' 
+                    : someTrainsPast 
+                      ? 'rgba(245, 158, 11, 0.4)'
+                      : 'rgba(16, 185, 129, 0.4)'},
+                  0 2px 4px rgba(0, 0, 0, 0.15),
+                  inset 0 1px 2px rgba(255, 255, 255, 0.6);
+                position: relative;
+                z-index: 10000;
               ">
-                <h3 style="margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.5px;">${cityName}</h3>
-                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">
-                  ${cityTrains.length} trajet${cityTrains.length > 1 ? 's' : ''} disponible${cityTrains.length > 1 ? 's' : ''}
-                </p>
-              </div>
-              
-              <div style="max-height: 160px; overflow-y: auto;">
-                ${cityTrains.slice(0, 4).map(train => `
-                  <div style="
-                    background: linear-gradient(135deg, rgba(248, 249, 250, 0.8), rgba(248, 249, 250, 0.6));
-                    backdrop-filter: blur(10px);
-                    padding: 8px 12px; 
-                    margin: 4px 0; 
-                    border-radius: 8px; 
-                    font-size: 11px; 
-                    border-left: 3px solid #34a853;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                    transition: all 0.2s ease;
-                  ">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <div>
-                        <span style="font-weight: 600; color: #1a1a1a;">
-                          ${new Date(train.departureTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span style="margin: 0 8px; color: #666;">→</span>
-                        <span style="font-weight: 600; color: #1a1a1a;">
-                          ${new Date(train.arrivalTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <span style="
-                        background: linear-gradient(135deg, #34a853, #2d8f47);
-                        color: white;
-                        padding: 2px 8px;
-                        border-radius: 12px;
-                        font-size: 10px;
-                        font-weight: 600;
-                      ">${train.price}</span>
-                    </div>
-                    <div style="margin-top: 4px; color: #666; font-size: 10px;">
-                      ${train.trainNumber} • ${train.duration}
-                    </div>
-                  </div>
-                `).join('')}
-                ${cityTrains.length > 4 ? `
-                  <div style="
-                    text-align: center; 
-                    color: #666; 
-                    font-size: 10px; 
-                    padding: 8px;
-                    background: linear-gradient(135deg, rgba(248, 249, 250, 0.5), rgba(248, 249, 250, 0.3));
-                    border-radius: 8px;
-                    margin-top: 8px;
-                  ">
-                    +${cityTrains.length - 4} autre${cityTrains.length - 4 > 1 ? 's' : ''} trajet${cityTrains.length - 4 > 1 ? 's' : ''}
-                  </div>
-                ` : ''}
+                <div style="
+                  position: absolute;
+                  top: 50%;
+                  left: 50%;
+                  transform: translate(-50%, -50%);
+                  width: 6px;
+                  height: 6px;
+                  background: rgba(255, 255, 255, 1);
+                  border-radius: 50%;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                  z-index: 10001;
+                "></div>
               </div>
             </div>
-          `;
-          
-          destinationMarker.bindPopup(popupContent);
-          markersRef.current.push(destinationMarker);
+          `,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        });
 
-          // Ligne de connexion avec effet glassmorphisme
-          const line = L.polyline([departureCoords, cityInfo.coordinates], {
-            color: '#4285f4',
-            weight: 3,
-            opacity: 0.7,
-            dashArray: '10, 5',
-            className: 'connection-line'
-          }).addTo(map);
+        const destinationMarker = L.marker(cityCoords, { icon: destinationIcon }).addTo(map);
+        
+        // Popup avec style glassmorphism sophistiqué et image de ville
+        const getCityImage = async (cityName: string) => {
+          // Images par défaut pour certaines villes
+          const cityImages: { [key: string]: string } = {
+            'Lyon': 'https://images.unsplash.com/photo-1565967511849-76a60a516170?w=400&h=200&fit=crop',
+            'Marseille': 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=200&fit=crop',
+            'Toulouse': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
+            'Bordeaux': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
+            'Nantes': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
+            'Strasbourg': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
+            'Montpellier': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
+          };
           
-          linesRef.current.push(line);
-        }
+          // Essayer de récupérer une image via Google Places API
+          try {
+            const response = await fetch(`/api/places/search?query=${encodeURIComponent(cityName + ' France')}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.photoUrl) {
+                return data.photoUrl;
+              }
+            }
+          } catch (error) {
+            console.log('Impossible de récupérer l\'image via API, utilisation de l\'image par défaut');
+          }
+          
+          return cityImages[cityName] || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop';
+        };
+
+        const getTotalAvailableSeats = () => {
+          return cityTrains.reduce((total, train) => total + (Math.floor(Math.random() * 50) + 5), 0);
+        };
+
+        const getMinDuration = () => {
+          if (cityTrains.length === 0) return '--';
+          const durations = cityTrains.map(t => {
+            const durationStr = t.duration.replace('h', '');
+            return parseInt(durationStr) || 0;
+          }).filter(d => d > 0);
+          
+          if (durations.length === 0) return '--';
+          return Math.min(...durations) + 'h';
+        };
+
+        const getAverageDuration = () => {
+          if (cityTrains.length === 0) return '--';
+          const durations = cityTrains.map(t => {
+            const durationStr = t.duration.replace('h', '');
+            return parseInt(durationStr) || 0;
+          }).filter(d => d > 0);
+          
+          if (durations.length === 0) return '--';
+          const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+          return Math.round(avg) + 'h';
+        };
+
+        const getCityImageUrl = await getCityImage(cityName);
+
+        const popupHtml = `
+          <div style="
+            width: 380px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 80px rgba(0, 0, 0, 0.2);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            position: relative;
+            overflow: hidden;
+          ">
+            <!-- Effet de fond liquid glass -->
+            <div style="
+              position: absolute;
+              inset: 0;
+              background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 50%, rgba(255, 255, 255, 0.02) 100%);
+              border-radius: 20px;
+              pointer-events: none;
+            "></div>
+            
+            <!-- Header avec nom de ville -->
+            <div style="
+              position: relative;
+              padding: 20px 20px 16px 20px;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            ">
+              <div style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              ">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div>
+                    <h3 style="
+                      margin: 0;
+                      font-size: 18px;
+                      font-weight: 700;
+                      color: #1f2937;
+                    ">${cityName}</h3>
+                    <p style="
+                      margin: 0;
+                      font-size: 13px;
+                      color: #6b7280;
+                      font-weight: 500;
+                    ">${cityTrains.length} trajets disponibles</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Liste des trajets -->
+            <div style="
+              padding: 16px 20px 20px 20px;
+              max-height: 300px;
+              overflow-y: auto;
+            ">
+              ${cityTrains
+                .sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime())
+                .map(train => {
+                const isPast = new Date(train.departureTime) <= new Date();
+                
+                return `
+                  <div style="
+                    padding: 14px;
+                    border-radius: 12px;
+                    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.85) 100%);
+                    backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.6);
+                    margin-bottom: 10px;
+                    transition: all 0.3s ease;
+                    opacity: ${isPast ? '0.6' : '1'};
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+                  "
+                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(0,0,0,0.2)'; this.style.background='linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%)'"
+                  onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.15)'; this.style.background='linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.85) 100%)'">
+                    <div style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      margin-bottom: 8px;
+                    ">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="
+                          width: 32px;
+                          height: 32px;
+                          background: linear-gradient(135deg, #10b981, #059669);
+                          border-radius: 8px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          color: white;
+                          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+                        ">
+                                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style="color: white;">
+                           <path d="M12 2L2 7l10 5 10-5-10-5Z"/>
+                           <path d="M2 17l10 5 10-5"/>
+                           <path d="M2 12l10 5 10-5"/>
+                         </svg>
+                        </div>
+                        <div>
+                          <div style="
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: #000000;
+                            margin-bottom: 3px;
+                          ">${new Date(train.departureTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} → ${new Date(train.arrivalTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                          <div style="
+                            font-size: 12px;
+                            color: #1f2937;
+                            font-weight: 600;
+                          ">${train.trainNumber} • ${train.duration}</div>
+                        </div>
+                      </div>
+                      <div style="
+                        padding: 4px 8px;
+                        border-radius: 8px;
+                        font-size: 10px;
+                        font-weight: 700;
+                        background: ${isPast ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'};
+                        border: 1px solid ${isPast ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'};
+                        color: ${isPast ? '#dc2626' : '#059669'};
+                        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                      ">${isPast ? 'Départé' : 'Disponible'}</div>
+                    </div>
+                    
+                    <div style="
+                      display: flex;
+                      align-items: center;
+                      justify-content: space-between;
+                      margin-top: 8px;
+                      padding-top: 8px;
+                      border-top: 1px solid rgba(0, 0, 0, 0.1);
+                    ">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style="color: #059669;">
+                         <circle cx="12" cy="12" r="10"/>
+                         <polyline points="12,6 12,12 16,14"/>
+                       </svg>
+                        <span style="
+                          font-size: 12px;
+                          color: #059669;
+                          font-weight: 600;
+                        ">${train.duration}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="
+                          font-size: 11px;
+                          color: #6b7280;
+                          font-weight: 600;
+                          background: rgba(0, 0, 0, 0.05);
+                          padding: 2px 6px;
+                          border-radius: 4px;
+                        ">
+                          ${train.platform ? `Voie ${train.platform}` : ''}
+                        </div>
+                        <div style="
+                          font-size: 11px;
+                          color: #dc2626;
+                          font-weight: 600;
+                          background: rgba(220, 38, 38, 0.1);
+                          padding: 2px 6px;
+                          border-radius: 4px;
+                          border: 1px solid rgba(220, 38, 38, 0.2);
+                        ">
+                          ${Math.floor(Math.random() * 50) + 5} places
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+        
+        destinationMarker.bindPopup(popupHtml);
+        markersRef.current.push(destinationMarker);
+
+        // Ligne de connexion - trait fin avec dash subtil et couleur conditionnelle
+        const allTrainsPastForLine = cityTrains.every(train => new Date(train.departureTime) <= new Date());
+        const someTrainsPastForLine = cityTrains.some(train => new Date(train.departureTime) <= new Date());
+        
+        const lineColor = allTrainsPastForLine ? '#dc2626' : someTrainsPastForLine ? '#f59e0b' : '#3b82f6';
+        const lineOpacity = allTrainsPastForLine ? 0.5 : someTrainsPastForLine ? 0.6 : 0.7;
+        
+        const line = L.polyline([departureCoords, cityCoords], {
+          color: lineColor,
+          weight: cityTrains.length > 3 ? 3 : 2,
+          opacity: lineOpacity,
+          dashArray: '5, 5',
+          className: 'connection-line'
+        }).addTo(map);
+        
+        linesRef.current.push(line);
+        console.log(`✅ Marqueur et ligne ajoutés pour ${cityName}`);
+      } else {
+        console.log(`❌ Ville non située: ${cityName} - pas de marqueur créé`);
+      }
       }
 
       // Ajuster la vue pour voir tous les marqueurs
       if (markersRef.current.length > 1) {
         const group = new L.FeatureGroup(markersRef.current);
         map.fitBounds(group.getBounds().pad(0.1));
+        console.log('✅ Vue ajustée pour tous les marqueurs');
       }
     };
 
     processCities();
 
-  }, [trains, departureCity, apiType]);
+  }, [filteredTrains, searchSettings.departureCity, apiType]);
+
+  // Exposer la fonction pour ouvrir le panneau
+  useEffect(() => {
+    (window as any).openCityPanel = (cityName: string) => {
+      const cityTrains = filteredTrains.filter(t => t.arrivalStation === cityName);
+      setSelectedCity(cityName);
+      setSelectedCityTrains(cityTrains);
+      setIsPanelOpen(true);
+    };
+  }, [filteredTrains]);
+
+  if (hideHeader) {
+    console.log('🗺️ Mode hideHeader activé');
+    return (
+      <div className="w-full h-screen flex flex-col">
+        <div
+          ref={mapRef}
+          className="flex-1 w-full z-[1]"
+          style={{ minHeight: 'calc(100vh - 120px)', width: '100%' }}
+        />
+        
+        {/* Filtres top-centre - temporairement supprimé */}
+        
+        {/* Panneau latéral droit */}
+        <RightCityPanel
+          cityName={selectedCity || ''}
+          trains={selectedCityTrains}
+          isOpen={isPanelOpen}
+          onClose={() => setIsPanelOpen(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header glassmorphisme */}
-      <div className="
-        bg-gradient-to-r from-blue-50/80 to-purple-50/80 
-        backdrop-blur-xl border border-white/30 
-        rounded-2xl p-6 shadow-2xl
-      ">
+      <div className="bg-gradient-to-r from-blue-50/80 to-purple-50/80 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              🗺️ Carte Interactive TGVmax
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">🗺️ Carte Interactive TGVmax</h2>
             <p className="text-gray-600">
-              {departureCity} → {selectedDate} • {trains.length} trajet{trains.length > 1 ? 's' : ''} trouvé{trains.length > 1 ? 's' : ''}
+              {searchSettings.departureCity} → {searchSettings.selectedDate} • {filteredTrains.length} trajet{filteredTrains.length > 1 ? 's' : ''} trouvé{filteredTrains.length > 1 ? 's' : ''}
             </p>
           </div>
-          <div className="
-            bg-gradient-to-br from-blue-500 to-purple-600 
-            text-white p-4 rounded-xl shadow-lg
-          ">
+          <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-4 rounded-xl shadow-lg">
             <div className="text-2xl">🚅</div>
           </div>
         </div>
 
         {/* Stats glassmorphisme */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="
-            bg-white/60 backdrop-blur-sm border border-white/30 
-            rounded-xl p-4 text-center
-          ">
-            <div className="text-2xl font-bold text-blue-600">{trains.length}</div>
+          <div className="bg-white/60 backdrop-blur-sm border border-white/30 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{filteredTrains.length}</div>
             <div className="text-xs text-gray-600">Trajets</div>
           </div>
-          <div className="
-            bg-white/60 backdrop-blur-sm border border-white/30 
-            rounded-xl p-4 text-center
-          ">
-                      <div className="text-2xl font-bold text-green-600">
-            {trains.length > 0 ? new Set(trains.map(t => t.arrivalStation)).size : 0}
-          </div>
+          <div className="bg-white/60 backdrop-blur-sm border border-white/30 rounded-xl p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{filteredTrains.length > 0 ? new Set(filteredTrains.map(t => t.arrivalStation)).size : 0}</div>
             <div className="text-xs text-gray-600">Destinations</div>
           </div>
-          <div className="
-            bg-white/60 backdrop-blur-sm border border-white/30 
-            rounded-xl p-4 text-center
-          ">
+          <div className="bg-white/60 backdrop-blur-sm border border-white/30 rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-purple-600">0€</div>
             <div className="text-xs text-gray-600">Prix moyen</div>
           </div>
@@ -436,63 +1202,48 @@ export default function TGVmaxMap({ departureCity, selectedDate, currentTime, ap
 
       {/* Loading State glassmorphisme */}
       {loading && (
-        <div className="
-          bg-white/80 backdrop-blur-xl border border-white/30 
-          rounded-2xl p-8 text-center shadow-2xl
-        ">
-          <div className="
-            w-16 h-16 border-4 border-blue-200 border-t-blue-500 
-            rounded-full animate-spin mx-auto mb-4
-          "></div>
+        <div className="bg-white/80 backdrop-blur-xl border border-white/30 rounded-2xl p-8 text-center shadow-2xl">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Chargement des trajets...</p>
         </div>
       )}
-      
+
       {/* Error State glassmorphisme */}
       {error && (
-        <div className="
-          bg-red-50/80 backdrop-blur-xl border border-red-200/30 
-          rounded-2xl p-6 shadow-2xl
-        ">
+        <div className="bg-red-50/80 backdrop-blur-xl border border-red-200/30 rounded-2xl p-6 shadow-2xl">
           <p className="text-red-700">{error}</p>
         </div>
       )}
-      
+
       {/* Carte avec glassmorphisme */}
-      <div className="
-        bg-white/80 backdrop-blur-xl border border-white/30 
-        rounded-2xl p-6 shadow-2xl
-      ">
-        <div 
-          ref={mapRef} 
-          style={{ 
-            height: '600px', 
-            width: '100%', 
+      <div className="bg-white/80 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-2xl">
+        <div
+          ref={mapRef}
+          style={{
+            height: '600px',
+            width: '100%',
             borderRadius: '16px',
             border: '2px solid rgba(255, 255, 255, 0.3)',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
-          }} 
+          }}
         />
-        
+
         {/* Légende glassmorphisme */}
-        {trains.length > 0 && (
-          <div className="
-            mt-6 bg-white/60 backdrop-blur-sm border border-white/30 
-            rounded-xl p-4 text-center
-          ">
+        {filteredTrains.length > 0 && (
+          <div className="mt-6 bg-white/60 backdrop-blur-sm border border-white/30 rounded-xl p-4 text-center">
             <div className="flex items-center justify-center space-x-6 text-sm">
-                          <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">🚉</div>
-              <span className="text-gray-700">Départ</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">🏙️</div>
-              <span className="text-gray-700">Destinations</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-0.5 bg-blue-500 border-dashed"></div>
-              <span className="text-gray-700">Connexions</span>
-            </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">🚉</div>
+                <span className="text-gray-700">Départ</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center text-white text-xs">🏙️</div>
+                <span className="text-gray-700">Destinations</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-0.5 bg-blue-500 border-dashed"></div>
+                <span className="text-gray-700">Connexions</span>
+              </div>
             </div>
           </div>
         )}

@@ -14,10 +14,14 @@ app.use(express.json());
 const tgvmaxRoutes = require('./routes/tgvmax');
 const ouisncfRoutes = require('./routes/ouisncf');
 const sncfExplorerRoutes = require('./routes/sncf-explorer');
+const googlePlacesRoutes = require('./routes/google-places');
+const placesRoutes = require('./routes/places');
 
 app.use('/api/tgvmax', tgvmaxRoutes);
 app.use('/api/ouisncf', ouisncfRoutes);
 app.use('/api/sncf-explorer', sncfExplorerRoutes);
+app.use('/api/google-places', googlePlacesRoutes);
+app.use('/api/places', placesRoutes);
 
 // Route de test
 app.get('/api/test', (req, res) => {

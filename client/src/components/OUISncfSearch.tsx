@@ -65,7 +65,8 @@ export default function OUISncfSearch({ departureCity, selectedDate, currentTime
 
   const isTrainAvailable = (departureTime: string) => {
     const trainTime = new Date(departureTime);
-    return trainTime > currentTime;
+    const now = new Date();
+    return trainTime > now;
   };
 
   const formatTime = (timeString: string) => {
@@ -165,15 +166,15 @@ export default function OUISncfSearch({ departureCity, selectedDate, currentTime
       {!loading && !error && trains.length > 0 && (
         <div className="space-y-4">
           {trains.map((train, index) => (
-            <div 
-              key={train.id} 
-              className={`bg-white rounded-xl p-6 shadow-sm border transition-all duration-200 hover:shadow-md ${
-                isTrainAvailable(train.departureTime) 
-                  ? 'border-purple-200 hover:border-purple-300' 
-                  : 'border-gray-200 opacity-75'
-              }`}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
+                         <div 
+               key={train.id} 
+               className={`bg-white rounded-xl p-6 shadow-sm border transition-all duration-200 hover:shadow-md ${
+                 isTrainAvailable(train.departureTime) 
+                   ? 'border-purple-200 hover:border-purple-300' 
+                   : 'border-red-200 bg-red-50/30 opacity-75'
+               }`}
+               style={{ animationDelay: `${index * 100}ms` }}
+             >
               <div className="flex items-center justify-between">
                 {/* Train Info */}
                 <div className="flex-1">
@@ -214,11 +215,11 @@ export default function OUISncfSearch({ departureCity, selectedDate, currentTime
                   <div className="text-3xl font-bold text-green-600 mb-2">
                     {train.price}
                   </div>
-                  <div className={`text-sm font-medium ${
-                    isTrainAvailable(train.departureTime) ? 'text-green-600' : 'text-gray-500'
-                  }`}>
-                    {isTrainAvailable(train.departureTime) ? 'Disponible' : 'Départé'}
-                  </div>
+                                     <div className={`text-sm font-medium ${
+                     isTrainAvailable(train.departureTime) ? 'text-green-600' : 'text-red-600'
+                   }`}>
+                     {isTrainAvailable(train.departureTime) ? 'Disponible' : 'Départé'}
+                   </div>
                 </div>
               </div>
             </div>

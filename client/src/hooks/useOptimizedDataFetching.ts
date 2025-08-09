@@ -42,7 +42,7 @@ const dataCache = new Map<string, { data: any; timestamp: number }>();
 export function useOptimizedDataFetching<T>({
   url,
   dependencies = [],
-  debounceMs = 1000, // Augmenté de 300ms à 1000ms
+  debounceMs = 200, // Réduit de 1000ms à 200ms pour plus de réactivité
   cacheTimeout = 5 * 60 * 1000, // 5 minutes
   onSuccess,
   onError,
@@ -264,21 +264,21 @@ export function useOptimizedDataFetching<T>({
 }
 
 // Hook spécialisé pour les données TGVmax
-export function useTGVmaxData(date: string): UseOptimizedDataFetchingReturn<Train[]> {
+export function useTGVmaxData(date: string, departureCity: string = 'Paris'): UseOptimizedDataFetchingReturn<Train[]> {
   return useOptimizedDataFetching<Train[]>({
-    url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=Paris`,
-    dependencies: [date],
-    cacheTimeout: 2 * 60 * 1000, // 2 minutes pour les données de trains
-    retryAttempts: 2,
-    retryDelay: 1000
+    url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}`,
+    dependencies: [date, departureCity],
+    cacheTimeout: 30 * 1000, // Réduit à 30 secondes pour plus de réactivité
+    retryAttempts: 1, // Réduire les tentatives pour accélérer
+    retryDelay: 500 // Réduire le délai de retry
   });
 }
 
-// Hook pour les suggestions de villes
-export function useCitySuggestions(query: string, date: string): UseOptimizedDataFetchingReturn<Train[]> {
+// Hook pour les suggestions de villes  
+export function useCitySuggestions(query: string, date: string, departureCity: string = 'Paris'): UseOptimizedDataFetchingReturn<Train[]> {
   return useOptimizedDataFetching<Train[]>({
-    url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=Paris`,
-    dependencies: [date],
+    url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}`,
+    dependencies: [date, departureCity],
     cacheTimeout: 10 * 60 * 1000, // 10 minutes pour les suggestions
     retryAttempts: 1,
     retryDelay: 500

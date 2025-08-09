@@ -42,7 +42,7 @@ function App() {
     error: dataError, 
     refetch: refetchData, 
     progress 
-  } = useTGVmaxData(searchSettings.selectedDate);
+  } = useTGVmaxData(searchSettings.selectedDate, searchSettings.departureCity);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -161,6 +161,7 @@ function App() {
             searchSettings={searchSettings}
             currentTime={currentTime}
             apiType="tgvmax"
+            trains={trains}
             onStats={handleMapStats}
             onLoadingChange={handleMapLoadingChange}
             hideHeader={true}

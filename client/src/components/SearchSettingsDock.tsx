@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapPin, Calendar, Clock, Search, X } from 'lucide-react';
+import { MapPin, Calendar, Clock, Search } from 'lucide-react';
 import LiquidGlassDatePicker from './LiquidGlassDatePicker';
 import CitySearchInput from './CitySearchInput';
 
@@ -159,37 +159,24 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
         {/* Effet de fond avec gradient subtil */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-white/5 rounded-[34px] pointer-events-none" />
         
-        {/* Header avec titre et boutons */}
+        {/* Header avec titre et bouton de réduction */}
         <div className="relative flex items-center justify-between mb-6">
           <h3 className="text-[17px] font-semibold text-gray-900 tracking-tight">
             Gestion des trajets
           </h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className="
-                w-8 h-8 rounded-xl
-                bg-gray-100/80 hover:bg-gray-200/80
-                flex items-center justify-center
-                transition-all duration-200
-              "
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4.80518 3.55545L20.6143 8.4198C21.4766 8.68511 21.5746 9.86635 20.7677 10.2698L14.0673 13.6199C13.8738 13.7167 13.7168 13.8736 13.62 14.0672L10.27 20.7671C9.86658 21.5741 8.68555 21.4762 8.42024 20.614L3.55544 4.80486C3.31935 4.03759 4.0379 3.31937 4.80518 3.55545Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <button
-              onClick={onClose}
-              className="
-                w-8 h-8 rounded-xl
-                bg-gray-100/80 hover:bg-gray-200/80
-                flex items-center justify-center
-                transition-all duration-200
-              "
-            >
-              <X className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsCollapsed(true)}
+            className="
+              w-8 h-8 rounded-xl
+              bg-gray-100/80 hover:bg-gray-200/80
+              flex items-center justify-center
+              transition-all duration-200
+            "
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4.80518 3.55545L20.6143 8.4198C21.4766 8.68511 21.5746 9.86635 20.7677 10.2698L14.0673 13.6199C13.8738 13.7167 13.7168 13.8736 13.62 14.0672L10.27 20.7671C9.86658 21.5741 8.68555 21.4762 8.42024 20.614L3.55544 4.80486C3.31935 4.03759 4.0379 3.31937 4.80518 3.55545Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
 
         {/* Contenu de la modale */}

@@ -10,6 +10,52 @@ import SearchSettingsDock from './SearchSettingsDock';
 // Import Leaflet
 import L from 'leaflet';
 
+interface MapStyle {
+  id: string;
+  name: string;
+  url: string;
+  attribution: string;
+}
+
+const MAP_STYLES: MapStyle[] = [
+  {
+    id: 'osm',
+    name: 'OpenStreetMap',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors'
+  },
+  {
+    id: 'cartodb-light',
+    name: 'CartoDB Clair',
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '© OpenStreetMap contributors, © CartoDB'
+  },
+  {
+    id: 'cartodb-dark',
+    name: 'CartoDB Sombre',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '© OpenStreetMap contributors, © CartoDB'
+  },
+  {
+    id: 'cartodb-voyager',
+    name: 'CartoDB Voyager',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '© OpenStreetMap contributors, © CartoDB'
+  },
+  {
+    id: 'stamen-toner',
+    name: 'Stamen Toner',
+    url: 'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png',
+    attribution: 'Map tiles by Stamen Design, CC BY 3.0 — Map data © OpenStreetMap contributors'
+  },
+  {
+    id: 'stamen-watercolor',
+    name: 'Stamen Watercolor',
+    url: 'https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg',
+    attribution: 'Map tiles by Stamen Design, CC BY 3.0 — Map data © OpenStreetMap contributors'
+  }
+];
+
 interface SearchSettings {
   departureCity: string;
   selectedDate: string;
@@ -19,6 +65,7 @@ interface TGVmaxMapProps {
   searchSettings: SearchSettings;
   currentTime: Date;
   apiType: 'tgvmax' | 'ouisncf' | 'sncf-official';
+  trains?: Train[]; // Données de trains venant d'App.tsx
   onStats?: (stats: MapStats) => void;
   onLoadingChange?: (loading: boolean) => void;
   hideHeader?: boolean;
@@ -55,6 +102,22 @@ const cityCache: { [key: string]: CityInfo } = {
   'DIJON VILLE': { name: 'Dijon', coordinates: [47.3220, 5.0415] },
   'TGV HAUTE PICARDIE': { name: 'TGV Haute-Picardie', coordinates: [49.8728, 2.8351] },
   'MARNE LA VALLEE CHESSY': { name: 'Marne-la-Vallée', coordinates: [48.8721, 2.7833] },
+  
+  // Nouvelles villes ajoutées pour réduire les appels API
+  'ANGERS ST LAUD': { name: 'Angers', coordinates: [47.4784, -0.5632] },
+  'AVIGNON TGV': { name: 'Avignon', coordinates: [43.9493, 4.7861] },
+  'BELFORT MONTBELIARD TGV': { name: 'Belfort', coordinates: [47.6400, 6.8628] },
+  'BESANCON FRANCHE COMTE TGV': { name: 'Besançon', coordinates: [47.3078, 5.8114] },
+  'CREPY EN VALOIS': { name: 'Crépy-en-Valois', coordinates: [49.2345, 2.8890] },
+  'GARE DE LYON PART DIEU': { name: 'Lyon Part-Dieu', coordinates: [45.7603, 4.8606] },
+  'LA ROCHELLE VILLE': { name: 'La Rochelle', coordinates: [46.1603, -1.1511] },
+  'LE CREUSOT MONTCEAU TGV': { name: 'Le Creusot', coordinates: [46.7969, 4.4161] },
+  'LORRAINE TGV': { name: 'Lorraine', coordinates: [49.0364, 6.2689] },
+  'POITIERS': { name: 'Poitiers', coordinates: [46.5802, 0.3404] },
+  'REIMS': { name: 'Reims', coordinates: [49.2583, 4.0317] },
+  'SAINT PIERRE DES CORPS': { name: 'Tours', coordinates: [47.3889, 0.7075] },
+  'VALENCE TGV': { name: 'Valence', coordinates: [44.9336, 4.7859] },
+  'VENDOME VILLIERS SUR LOIR TGV': { name: 'Vendôme', coordinates: [47.7856, 1.0194] },
 };
 
 // Clé API Google Maps
@@ -177,11 +240,17 @@ const filterTrains = (trains: Train[], settings: SearchSettings): Train[] => {
   });
 };
 
-export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStats, onLoadingChange, hideHeader = false }: TGVmaxMapProps) {
+export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains: propsTrains, onStats, onLoadingChange, hideHeader = false }: TGVmaxMapProps) {
   const [allTrains, setAllTrains] = useState<Train[]>([]);
   const [filteredTrains, setFilteredTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // États pour la sélection de style de carte
+  const [currentMapStyle, setCurrentMapStyle] = useState('osm');
+  const [showStyleSelector, setShowStyleSelector] = useState(false);
+  const [currentTileLayer, setCurrentTileLayer] = useState<L.TileLayer | null>(null);
+  
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -196,6 +265,47 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
 
   // Debug: Log des props reçues
   console.log('🗺️ TGVmaxMap props:', { searchSettings, apiType, hideHeader });
+
+  // Fonction pour changer le style de carte
+  const changeMapStyle = useCallback((styleId: string) => {
+    if (!mapInstanceRef.current || !currentTileLayer) return;
+    
+    const newStyle = MAP_STYLES.find(s => s.id === styleId);
+    if (!newStyle) return;
+    
+    const map = mapInstanceRef.current;
+    
+    // Supprimer l'ancien layer
+    map.removeLayer(currentTileLayer);
+    
+    // Ajouter le nouveau layer
+    const newTileLayer = L.tileLayer(newStyle.url, {
+      attribution: newStyle.attribution
+    }).addTo(map);
+    
+    // Mettre à jour les états
+    setCurrentTileLayer(newTileLayer);
+    setCurrentMapStyle(styleId);
+    setShowStyleSelector(false);
+    
+    // S'assurer que le nouveau layer est en arrière-plan
+    newTileLayer.bringToBack();
+    
+    // Remettre les marqueurs et lignes au premier plan
+    markersRef.current.forEach(marker => {
+      if (map.hasLayer(marker)) {
+        // Les marqueurs sont automatiquement au premier plan
+      }
+    });
+    
+    linesRef.current.forEach(line => {
+      if (map.hasLayer(line)) {
+        line.bringToFront();
+      }
+    });
+    
+    console.log(`✅ Style changé vers: ${newStyle.name}`);
+  }, [currentTileLayer]);
 
   // 1. Initialisation de la carte centrée sur la France
   useEffect(() => {
@@ -251,10 +361,14 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
       });
       
       console.log('🗺️ Ajout de la couche de tuiles...');
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
+      const initialStyle = MAP_STYLES.find(s => s.id === currentMapStyle) || MAP_STYLES[0];
+      const tileLayer = L.tileLayer(initialStyle.url, {
+        attribution: initialStyle.attribution,
         maxZoom: 18
       }).addTo(map);
+      
+      // Sauvegarder la référence du tileLayer
+      setCurrentTileLayer(tileLayer);
       
       mapInstanceRef.current = map;
       console.log('✅ Carte initialisée avec succès');
@@ -285,7 +399,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
         mapInstanceRef.current = null;
       }
     };
-  }, []);
+  }, [currentMapStyle]);
 
   // 2. Chargement des trajets
   const fetchTrains = useCallback(async () => {
@@ -333,8 +447,25 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
     }
   }, [searchSettings.departureCity, searchSettings.selectedDate, apiType, onLoadingChange]);
 
-  // 3. Filtrer les trains selon les paramètres
+  // 3. Filtrage optimisé des trains avec memoization
+  const filteredTrainsOptimized = useCallback(() => {
+    console.log('🚀 Filtrage optimisé des trains...');
+    console.log('🔍 allTrains:', allTrains.length);
+    console.log('🔍 searchSettings:', searchSettings);
+    
+    if (!allTrains || allTrains.length === 0) {
+      return [];
+    }
+    
+    return allTrains; // Pour l'instant, retourner tous les trains (vous pouvez ajouter la logique de filtrage ici)
+  }, [allTrains, searchSettings]);
+
   useEffect(() => {
+    setFilteredTrains(filteredTrainsOptimized());
+  }, [filteredTrainsOptimized]);
+
+  // useEffect original commenté pour éviter la duplication
+  /*useEffect(() => {
     console.log('🔍 Filtrage des trains...');
     console.log('🔍 allTrains:', allTrains.length);
     console.log('🔍 searchSettings:', searchSettings);
@@ -344,23 +475,91 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
     const filtered = allTrains; // Utiliser tous les trains pour debug
     setFilteredTrains(filtered);
     console.log(`🔍 ${filtered.length} trajets filtrés sur ${allTrains.length} total (filtrage désactivé)`);
-  }, [allTrains, searchSettings]);
+  }, [allTrains, searchSettings]);*/
 
-  // 4. Charger les trajets quand les paramètres changent
-  useEffect(() => {
-    console.log('🚂 Vérification des paramètres pour charger les trajets...');
-    console.log('🚂 departureCity:', searchSettings.departureCity);
-    console.log('🚂 selectedDate:', searchSettings.selectedDate);
+  // Fonction pour vérifier si un train part bien de la ville sélectionnée
+  const isTrainFromSelectedCity = useCallback((train: Train, selectedCity: string): boolean => {
+    const normalizedSelectedCity = normalizeCityName(selectedCity);
+    const normalizedDepartureStation = normalizeCityName(train.departureStation);
     
-    if (searchSettings.departureCity && searchSettings.selectedDate) {
-      console.log('🚂 Paramètres valides, chargement des trajets...');
-      fetchTrains();
-    } else {
-      console.log('❌ Paramètres manquants pour charger les trajets');
-    }
-  }, [searchSettings.departureCity, searchSettings.selectedDate, apiType, fetchTrains]);
+    console.log(`🔍 Vérification: "${normalizedDepartureStation}" vs "${normalizedSelectedCity}"`);
+    
+    // Mapping exact des villes vers leurs variantes de gares
+    const cityToStationVariants: { [key: string]: string[] } = {
+      'LYON': ['LYON', 'LYON PART DIEU', 'LYON PERRACHE', 'LYON (INTRAMUROS)'],
+      'PARIS': ['PARIS', 'PARIS GARE DE LYON', 'PARIS MONTPARNASSE', 'PARIS NORD', 'PARIS EST', 'PARIS (INTRAMUROS)', 'GARE DE LYON'],
+      'MARSEILLE': ['MARSEILLE', 'MARSEILLE ST CHARLES', 'MARSEILLE SAINT CHARLES'],
+      'BORDEAUX': ['BORDEAUX', 'BORDEAUX ST JEAN', 'BORDEAUX SAINT JEAN'],
+      'TOULOUSE': ['TOULOUSE', 'TOULOUSE MATABIAU'],
+      'LILLE': ['LILLE', 'LILLE EUROPE', 'LILLE FLANDRES', 'LILLE (INTRAMUROS)'],
+      'NANTES': ['NANTES', 'NANTES GARE'],
+      'STRASBOURG': ['STRASBOURG', 'STRASBOURG VILLE'],
+      'NICE': ['NICE', 'NICE VILLE'],
+      'MONTPELLIER': ['MONTPELLIER', 'MONTPELLIER ST ROCH', 'MONTPELLIER SAINT ROCH'],
+      'RENNES': ['RENNES', 'RENNES GARE'],
+      'DIJON': ['DIJON', 'DIJON VILLE'],
+      'REIMS': ['REIMS', 'REIMS CENTRE']
+    };
+    
+    // Récupérer les variantes pour la ville sélectionnée
+    const allowedStations = cityToStationVariants[normalizedSelectedCity] || [normalizedSelectedCity];
+    
+    // Vérifier si la gare de départ correspond exactement à une des variantes autorisées
+    const isMatch = allowedStations.some(station => {
+      const exactMatch = normalizedDepartureStation === station;
+      const containsMatch = normalizedDepartureStation.includes(station) && station.length > 3; // Éviter les correspondances trop courtes
+      
+      console.log(`  - "${station}": exactMatch=${exactMatch}, containsMatch=${containsMatch}`);
+      return exactMatch || containsMatch;
+    });
+    
+    console.log(`  → Résultat: ${isMatch ? '✅ ACCEPTÉ' : '❌ REJETÉ'}`);
+    return isMatch;
+  }, []);
 
-  // 5. Remonter les statistiques vers le parent
+  // 4. Utiliser les trains venant d'App.tsx et filtrer côté client
+  useEffect(() => {
+    console.log('🚂 Mise à jour des trains depuis App.tsx...');
+    console.log('🚂 propsTrains:', propsTrains?.length || 0);
+    console.log('🚂 searchSettings.departureCity:', searchSettings.departureCity);
+    
+    if (propsTrains && propsTrains.length > 0) {
+      console.log(`✅ ${propsTrains.length} trains reçus depuis App.tsx`);
+      
+      // Filtrer pour ne garder que les trains partant de la ville sélectionnée
+      const filteredByDeparture = propsTrains.filter(train => {
+        const isFromCity = isTrainFromSelectedCity(train, searchSettings.departureCity);
+        if (!isFromCity) {
+          console.log(`🚫 Train filtré: ${train.departureStation} ne correspond pas à ${searchSettings.departureCity}`);
+        }
+        return isFromCity;
+      });
+      
+      console.log(`🔍 ${filteredByDeparture.length} trains restants après filtrage par ville de départ`);
+      
+      setAllTrains(filteredByDeparture);
+      setLoading(false);
+      if (onLoadingChange) onLoadingChange(false);
+      setError(null);
+    } else if (propsTrains && propsTrains.length === 0) {
+      console.log('⚠️ Aucun train reçu depuis App.tsx');
+      setAllTrains([]);
+      setLoading(false);
+      if (onLoadingChange) onLoadingChange(false);
+    }
+  }, [propsTrains, searchSettings.departureCity, onLoadingChange, isTrainFromSelectedCity]);
+
+  // 5. Mettre à jour filteredTrains quand allTrains change
+  useEffect(() => {
+    console.log('🔄 Mise à jour de filteredTrains...');
+    console.log('🔄 allTrains:', allTrains.length);
+    
+    // Pour l'instant, utiliser tous les trains (le filtrage par ville de départ est déjà fait)
+    setFilteredTrains(allTrains);
+    console.log(`✅ ${allTrains.length} trains disponibles après filtrage`);
+  }, [allTrains]);
+
+  // 6. Remonter les statistiques vers le parent
   useEffect(() => {
     if (!onStats) return;
     const destinationsCount = filteredTrains.length > 0 ? new Set(filteredTrains.map(t => t.arrivalStation)).size : 0;
@@ -424,9 +623,9 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
     }
   }, [searchSettings.selectedDate]);
 
-  // 8. Affichage des marqueurs et lignes avec style iOS 26 minimal
+  // 8. Affichage optimisé des marqueurs et lignes avec batch rendering
   useEffect(() => {
-    console.log('🗺️ Affichage des marqueurs...');
+    console.log('🚀 Affichage optimisé des marqueurs...');
     console.log('🗺️ mapInstanceRef.current:', mapInstanceRef.current);
     console.log('🗺️ filteredTrains.length:', filteredTrains.length);
     console.log('🗺️ Date sélectionnée:', searchSettings.selectedDate);
@@ -958,8 +1157,19 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
                       font-weight: 700;
                       color: #1f2937;
                     ">${cityName}</h3>
+                    <div style="
+                      margin: 4px 0 0 0;
+                      font-size: 14px;
+                      font-weight: 600;
+                      color: #3b82f6;
+                      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+                      padding: 4px 8px;
+                      border-radius: 6px;
+                      border: 1px solid rgba(59, 130, 246, 0.2);
+                      display: inline-block;
+                    ">${normalizeCityName(cityTrains[0]?.departureStation || searchSettings.departureCity)} → ${cityName}</div>
                     <p style="
-                      margin: 0;
+                      margin: 6px 0 0 0;
                       font-size: 13px;
                       color: #6b7280;
                       font-weight: 500;
@@ -1020,6 +1230,12 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
                          </svg>
                         </div>
                         <div>
+                          <div style="
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #3b82f6;
+                            margin-bottom: 2px;
+                          ">${normalizeCityName(train.departureStation)} → ${normalizeCityName(train.arrivalStation)}</div>
                           <div style="
                             font-size: 14px;
                             font-weight: 700;
@@ -1132,7 +1348,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
 
     processCities();
 
-  }, [filteredTrains, searchSettings.departureCity, apiType]);
+  }, [filteredTrains, searchSettings.departureCity, searchSettings.selectedDate, apiType]);
 
   // Exposer la fonction pour ouvrir le panneau
   useEffect(() => {
@@ -1144,15 +1360,57 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, onStat
     };
   }, [filteredTrains]);
 
+  // Fermer le sélecteur de style quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showStyleSelector && !(event.target as Element).closest('.style-selector')) {
+        setShowStyleSelector(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStyleSelector]);
+
   if (hideHeader) {
     console.log('🗺️ Mode hideHeader activé');
     return (
-      <div className="w-full h-screen flex flex-col">
+      <div className="w-full h-screen flex flex-col relative">
         <div
           ref={mapRef}
           className="flex-1 w-full z-[1]"
           style={{ minHeight: 'calc(100vh - 120px)', width: '100%' }}
         />
+        
+        {/* Sélecteur de style de carte */}
+        <div className="absolute top-4 right-4 z-[1000] style-selector">
+          <button
+            onClick={() => setShowStyleSelector(!showStyleSelector)}
+            className="relative flex items-center space-x-2 bg-black/8 backdrop-blur-[40px] border border-white/40 rounded-[18px] px-4 py-2.5 text-[14px] font-medium text-gray-900 tracking-tight hover:bg-black/12 transition-all duration-200 shadow-[0_12px_64px_rgba(0,0,0,0.08)] hover:shadow-[0_16px_80px_rgba(0,0,0,0.12)]"
+          >
+            <span className="hidden sm:inline">Style: {MAP_STYLES.find(s => s.id === currentMapStyle)?.name}</span>
+            <span className="sm:hidden">Style</span>
+            <svg className={`w-4 h-4 transition-transform duration-200 ${showStyleSelector ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {showStyleSelector && (
+            <div className="absolute top-full right-0 mt-3 bg-black/8 backdrop-blur-[40px] border border-white/40 rounded-[20px] shadow-[0_12px_64px_rgba(0,0,0,0.08)] z-50 min-w-[280px] overflow-hidden">
+              {MAP_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  onClick={() => changeMapStyle(style.id)}
+                  className={`w-full px-4 py-3 text-left text-[14px] font-medium transition-all duration-200 hover:bg-white/10 ${
+                    currentMapStyle === style.id ? 'bg-white/15 text-blue-600' : 'text-gray-900'
+                  }`}
+                >
+                  {style.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         
         {/* Filtres top-centre - temporairement supprimé */}
         

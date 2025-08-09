@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { Train, MapStats } from '../types';
 import 'leaflet/dist/leaflet.css';
-import MapDestinationPopup from './MapDestinationPopup';
+// import MapDestinationPopup from './MapDestinationPopup';
 import RightCityPanel from './RightCityPanel';
-import StatsOverlay from './StatsOverlay';
-import SearchSettingsDock from './SearchSettingsDock';
-import ReturnTripModal from './ReturnTripModal';
+// import StatsOverlay from './StatsOverlay';
+// import SearchSettingsDock from './SearchSettingsDock';
+// import ReturnTripModal from './ReturnTripModal';
 
 // Import Leaflet
 import L from 'leaflet';
@@ -151,6 +151,7 @@ const normalizeCityName = (cityName: string): string => {
 };
 
 // Fonction pour récupérer les coordonnées via Google Places API
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getCityCoordinates = async (cityName: string): Promise<CityInfo | null> => {
   const cleanCityName = normalizeCityName(cityName);
   
@@ -227,6 +228,7 @@ const getCityCoordinates = async (cityName: string): Promise<CityInfo | null> =>
 };
 
 // Fonction pour filtrer les trains selon les paramètres
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const filterTrains = (trains: Train[], settings: SearchSettings): Train[] => {
   console.log('🔍 Structure du premier train:', trains[0]);
   

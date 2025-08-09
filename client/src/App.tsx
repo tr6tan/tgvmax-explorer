@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import TGVmaxMap from './components/TGVmaxMap';
 import SearchSettingsDock from './components/SearchSettingsDock';
-import StatsOverlay from './components/StatsOverlay';
+// import StatsOverlay from './components/StatsOverlay';
 import OptimizedLoadingSpinner from './components/OptimizedLoadingSpinner';
 import ReturnTripModal from './components/ReturnTripModal';
 import { useTGVmaxData } from './hooks/useOptimizedDataFetching';
@@ -37,7 +37,7 @@ function App() {
     destinationsCount: 0,
     lastUpdated: '',
   });
-  const [mapLoading, setMapLoading] = useState(false);
+  // const [mapLoading, setMapLoading] = useState(false);
 
   // Utilisation du hook optimisé pour les données TGVmax
   const { 
@@ -92,9 +92,9 @@ function App() {
     setMapStats(stats);
   }, []);
 
-  const handleMapLoadingChange = useCallback((loading: boolean) => {
-    setMapLoading(loading);
-  }, []);
+  // const handleMapLoadingChange = useCallback((loading: boolean) => {
+  //   setMapLoading(loading);
+  // }, []);
 
   const handleTripSelection = useCallback((trip: any) => {
     console.log('🚅 Trajet sélectionné dans App:', trip);
@@ -203,7 +203,7 @@ function App() {
             apiType="tgvmax"
             trains={trains}
             onStats={handleMapStats}
-            onLoadingChange={handleMapLoadingChange}
+                                // onLoadingChange={handleMapLoadingChange}
             onTripSelection={handleTripSelection}
             hideHeader={true}
           />

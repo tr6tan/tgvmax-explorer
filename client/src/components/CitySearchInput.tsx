@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Search, ChevronDown } from 'lucide-react';
+import { MapPin, Search } from 'lucide-react';
 
 interface CitySearchInputProps {
   value: string;

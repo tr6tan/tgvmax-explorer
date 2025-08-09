@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, MapPin, Clock, ArrowLeftRight } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, ArrowLeftRight } from 'lucide-react';
 import LiquidGlassDatePicker from './LiquidGlassDatePicker';
 import axios from 'axios';
 import { Train } from '../types';
@@ -145,7 +145,7 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
         clearTimeout(timeoutId);
       };
     }
-  }, [returnDate, selectedTrip, isOpen]);
+  }, [returnDate, selectedTrip, isOpen, searchReturnTrains]);
 
   if (!isOpen || !selectedTrip) {
     return null;

@@ -50,12 +50,14 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setSearchTerm(newValue);
-    onChange(newValue);
+    // NE PAS appeler onChange ici - seulement pour la recherche locale
     
     if (!isOpen && newValue.length > 0) {
       setIsOpen(true);
     } else if (newValue.length === 0) {
       setIsOpen(false);
+      // Réinitialiser si l'input est vidé
+      onChange('');
     }
   };
 
@@ -71,6 +73,42 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
     }
   };
 
+  const handleInputBlur = () => {
+    // Petit délai pour permettre le clic sur suggestion
+    setTimeout(() => {
+      if (searchTerm.length > 0) {
+        // Vérifier si le terme saisi correspond exactement à une suggestion
+        const exactMatch = suggestions.find(city => 
+          city.toLowerCase() === searchTerm.toLowerCase()
+        );
+        if (exactMatch) {
+          onChange(exactMatch);
+        }
+      }
+    }, 150);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Vérifier si le terme saisi correspond exactement à une suggestion
+      const exactMatch = suggestions.find(city => 
+        city.toLowerCase() === searchTerm.toLowerCase()
+      );
+      if (exactMatch) {
+        setSearchTerm(exactMatch);
+        onChange(exactMatch);
+        setIsOpen(false);
+      } else if (filteredSuggestions.length > 0) {
+        // Sélectionner la première suggestion
+        const firstSuggestion = filteredSuggestions[0];
+        setSearchTerm(firstSuggestion);
+        onChange(firstSuggestion);
+        setIsOpen(false);
+      }
+    }
+  };
+
      return (
      <div className={`relative z-[3000] ${className}`} ref={dropdownRef}>
       {/* Input de recherche */}
@@ -81,6 +119,8 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          onKeyDown={handleKeyDown}
           className="
             w-full pl-12 pr-10 py-3 text-[14px]
             bg-white/60 backdrop-blur-sm border border-white/40

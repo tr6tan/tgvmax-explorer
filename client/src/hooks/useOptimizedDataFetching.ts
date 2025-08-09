@@ -218,16 +218,30 @@ export function useOptimizedDataFetching<T>({
 
   // Effet principal - version simplifiée
   useEffect(() => {
-    // Éviter les requêtes multiples si on est déjà en train de charger
+    const cacheKey = `${url}-${JSON.stringify(dependencies)}`;
+    
+    console.log(`🔄 useEffect déclenché pour:`, { 
+      url, 
+      dependencies, 
+      cacheKey,
+      cacheTimeout,
+      currentCacheKeys: Array.from(dataCache.keys())
+    });
+    
+    // Si on est en train de charger la même requête, attendre
     if (loading) {
+      console.log(`⏳ Requête déjà en cours pour: ${url}`);
       return;
     }
 
     // Vérifier si on a déjà des données valides en cache
-    const cacheKey = `${url}-${JSON.stringify(dependencies)}`;
     const cached = dataCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < cacheTimeout) {
-      console.log(`📦 Données déjà en cache valide pour: ${url}`);
+      console.log(`📦 CACHE HIT - Données récupérées du cache pour: ${url}`, { 
+        age: Date.now() - cached.timestamp,
+        maxAge: cacheTimeout,
+        dataLength: cached.data?.length || 'N/A'
+      });
       setData(cached.data);
       setLoading(false);
       setError(null);
@@ -235,7 +249,11 @@ export function useOptimizedDataFetching<T>({
       return;
     }
 
-    // Lancer la requête immédiatement
+    // Le cache est expiré ou inexistant, lancer une nouvelle requête
+    console.log(`🚀 CACHE MISS - Lancement nouvelle requête pour: ${url}`, {
+      cached: !!cached,
+      expired: cached ? Date.now() - cached.timestamp >= cacheTimeout : 'N/A'
+    });
     fetchData();
 
     return () => {
@@ -246,7 +264,7 @@ export function useOptimizedDataFetching<T>({
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [url, dependencies.join(',')]); // Dépendances simplifiées
+  }, [url, JSON.stringify(dependencies)]); // Utiliser JSON.stringify pour une meilleure détection des changements
 
   // Nettoyage du cache périodiquement
   useEffect(() => {
@@ -265,10 +283,15 @@ export function useOptimizedDataFetching<T>({
 
 // Hook spécialisé pour les données TGVmax
 export function useTGVmaxData(date: string, departureCity: string = 'Paris'): UseOptimizedDataFetchingReturn<Train[]> {
+  // Vider le cache si les paramètres changent pour forcer une nouvelle requête
+  const cacheKey = `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}-${JSON.stringify([date, departureCity])}`;
+  
+  console.log('🎯 useTGVmaxData appelé avec:', { date, departureCity, cacheKey });
+  
   return useOptimizedDataFetching<Train[]>({
     url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}`,
     dependencies: [date, departureCity],
-    cacheTimeout: 30 * 1000, // Réduit à 30 secondes pour plus de réactivité
+    cacheTimeout: 0, // Désactiver complètement le cache pour debug
     retryAttempts: 1, // Réduire les tentatives pour accélérer
     retryDelay: 500 // Réduire le délai de retry
   });

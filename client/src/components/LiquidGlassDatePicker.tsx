@@ -144,7 +144,7 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
   const calendarDays = generateCalendarDays();
 
      return (
-     <div className={`relative z-[3000] ${className}`} ref={dropdownRef}>
+     <div className={`relative z-[9999] ${className}`} ref={dropdownRef}>
       {/* Bouton de déclenchement */}
              <button
          onClick={() => {
@@ -168,7 +168,7 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
            w-full pl-12 pr-4 py-3 text-[14px]
            liquid-glass-calendar
            flex items-center justify-between
-           relative z-[3000]
+           relative z-[9999]
          "
        >
         <div className="flex items-center">
@@ -200,11 +200,11 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
              {/* Dropdown du calendrier */}
        {isOpen && (
          <div className={`
-           absolute z-[3000] left-0
+           absolute z-[9999] left-0
            ${openDirection === 'down' ? 'top-full mt-2' : 'bottom-full mb-2'}
-           w-64 rounded-2xl p-3
-           bg-white/80 backdrop-blur-[20px] border border-white/60
-           shadow-[0_8px_32px_rgba(0,0,0,0.12)]
+           w-64 rounded-2xl p-4
+           bg-white/95 backdrop-blur-[40px] border-2 border-white/80
+           shadow-[0_16px_64px_rgba(0,0,0,0.25)]
            transition-all duration-300 ease-out
            max-h-80 overflow-y-auto
          `}>
@@ -213,10 +213,11 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
              <button
                onClick={() => navigateMonth('prev')}
                className="
-                 w-6 h-6 rounded-lg
-                 bg-white/60 backdrop-blur-sm border border-white/40
+                 w-8 h-8 rounded-lg
+                 bg-white/80 backdrop-blur-sm border border-white/60
                  flex items-center justify-center
-                 hover:bg-white/80 transition-all duration-200
+                 hover:bg-white/95 transition-all duration-200
+                 shadow-sm
                "
              >
                <ChevronLeft className="w-3 h-3 text-gray-600" />
@@ -229,10 +230,11 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
              <button
                onClick={() => navigateMonth('next')}
                className="
-                 w-6 h-6 rounded-lg
-                 bg-white/60 backdrop-blur-sm border border-white/40
+                 w-8 h-8 rounded-lg
+                 bg-white/80 backdrop-blur-sm border border-white/60
                  flex items-center justify-center
-                 hover:bg-white/80 transition-all duration-200
+                 hover:bg-white/95 transition-all duration-200
+                 shadow-sm
                "
              >
                <ChevronRight className="w-3 h-3 text-gray-600" />
@@ -256,13 +258,13 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
                  onClick={() => date && !isDisabled(date) && handleDateSelect(date)}
                  disabled={!date || isDisabled(date)}
                  className={`
-                   w-7 h-7 rounded-lg text-xs font-medium
+                   w-8 h-8 rounded-lg text-xs font-medium
                    transition-all duration-200 ease-out
                    ${!date ? 'invisible' : ''}
-                   ${date && isDisabled(date) ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-blue-50'}
-                   ${date && isToday(date) ? 'bg-blue-200 text-blue-800 font-semibold ring-2 ring-blue-300' : ''}
-                   ${date && isSelected(date) ? 'bg-blue-600 text-white shadow-lg' : ''}
-                   ${date && !isToday(date) && !isSelected(date) && !isDisabled(date) ? 'text-gray-700' : ''}
+                   ${date && isDisabled(date) ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-blue-100 hover:scale-105'}
+                   ${date && isToday(date) ? 'bg-blue-500 text-white font-bold ring-2 ring-blue-300 shadow-md' : ''}
+                   ${date && isSelected(date) ? 'bg-blue-600 text-white shadow-lg scale-105' : ''}
+                   ${date && !isToday(date) && !isSelected(date) && !isDisabled(date) ? 'text-gray-800 bg-white/60 hover:bg-white/80' : ''}
                  `}
                >
                  {date?.getDate()}

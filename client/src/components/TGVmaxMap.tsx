@@ -6,6 +6,7 @@ import MapDestinationPopup from './MapDestinationPopup';
 import RightCityPanel from './RightCityPanel';
 import StatsOverlay from './StatsOverlay';
 import SearchSettingsDock from './SearchSettingsDock';
+import ReturnTripModal from './ReturnTripModal';
 
 // Import Leaflet
 import L from 'leaflet';
@@ -59,6 +60,14 @@ const MAP_STYLES: MapStyle[] = [
 interface SearchSettings {
   departureCity: string;
   selectedDate: string;
+  destinationCity?: string;
+}
+
+interface SelectedTrip {
+  train: Train;
+  date: string;
+  departureCity: string;
+  arrivalCity: string;
 }
 
 interface TGVmaxMapProps {
@@ -68,6 +77,7 @@ interface TGVmaxMapProps {
   trains?: Train[]; // Données de trains venant d'App.tsx
   onStats?: (stats: MapStats) => void;
   onLoadingChange?: (loading: boolean) => void;
+  onTripSelection?: (trip: SelectedTrip) => void;
   hideHeader?: boolean;
 }
 
@@ -240,7 +250,7 @@ const filterTrains = (trains: Train[], settings: SearchSettings): Train[] => {
   });
 };
 
-export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains: propsTrains, onStats, onLoadingChange, hideHeader = false }: TGVmaxMapProps) {
+export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains: propsTrains, onStats, onLoadingChange, onTripSelection, hideHeader = false }: TGVmaxMapProps) {
   const [allTrains, setAllTrains] = useState<Train[]>([]);
   const [filteredTrains, setFilteredTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(false);
@@ -263,8 +273,82 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
   const [selectedCityTrains, setSelectedCityTrains] = useState<Train[]>([]);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
+  // États pour les trajets aller/retour et le modal
+  const [selectedOutboundTrip, setSelectedOutboundTrip] = useState<SelectedTrip | null>(null);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [savedTrips, setSavedTrips] = useState<{outbound: SelectedTrip | null, returnDate: string | null}>({
+    outbound: null,
+    returnDate: null
+  });
+
   // Debug: Log des props reçues
   console.log('🗺️ TGVmaxMap props:', { searchSettings, apiType, hideHeader });
+
+  // Fonction pour sauvegarder les trajets dans localStorage
+  const saveTripsToStorage = useCallback((trips: {outbound: SelectedTrip | null, returnDate: string | null}) => {
+    try {
+      localStorage.setItem('tgvmax_saved_trips', JSON.stringify(trips));
+      console.log('💾 Trajets sauvegardés:', trips);
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde localStorage:', error);
+    }
+  }, []);
+
+  // Fonction pour charger les trajets depuis localStorage
+  const loadTripsFromStorage = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('tgvmax_saved_trips');
+      if (saved) {
+        const trips = JSON.parse(saved);
+        setSavedTrips(trips);
+        console.log('📂 Trajets chargés:', trips);
+        return trips;
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement localStorage:', error);
+    }
+    return { outbound: null, returnDate: null };
+  }, []);
+
+  // Charger les trajets sauvegardés au montage
+  useEffect(() => {
+    loadTripsFromStorage();
+  }, [loadTripsFromStorage]);
+
+  // Fonction pour gérer le clic sur un trajet (ouverture modal retour)
+  const handleTripClick = useCallback((train: Train, cityName: string) => {
+    const trip: SelectedTrip = {
+      train,
+      date: searchSettings.selectedDate,
+      departureCity: searchSettings.departureCity,
+      arrivalCity: cityName
+    };
+    
+    console.log('🚅 Trajet sélectionné dans TGVmaxMap:', trip);
+    
+    if (onTripSelection) {
+      onTripSelection(trip);
+    } else {
+      console.warn('⚠️ onTripSelection non défini');
+    }
+  }, [searchSettings, onTripSelection]);
+
+  // Fonction pour gérer la recherche de retour
+  const handleReturnTripSearch = useCallback((returnDate: string) => {
+    console.log('🔍 Recherche retour pour le:', returnDate);
+    // TODO: Implémenter la recherche de retour
+    // Pour l'instant, on ferme juste le modal
+    setIsReturnModalOpen(false);
+  }, []);
+
+  // Fonction pour sauvegarder le trajet complet (aller + date retour)
+  const handleTripSave = useCallback((outbound: SelectedTrip, returnDate: string) => {
+    const trips = { outbound, returnDate };
+    setSavedTrips(trips);
+    saveTripsToStorage(trips);
+    setIsReturnModalOpen(false);
+    console.log('✅ Trajet aller + retour sauvegardé');
+  }, [saveTripsToStorage]);
 
   // Fonction pour changer le style de carte
   const changeMapStyle = useCallback((styleId: string) => {
@@ -531,6 +615,8 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         const isFromCity = isTrainFromSelectedCity(train, searchSettings.departureCity);
         if (!isFromCity) {
           console.log(`🚫 Train filtré: ${train.departureStation} ne correspond pas à ${searchSettings.departureCity}`);
+        } else {
+          console.log(`✅ Train accepté: ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber})`);
         }
         return isFromCity;
       });
@@ -1189,6 +1275,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
               ${cityTrains
                 .sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime())
                 .map(train => {
+                console.log(`🚂 Génération popup pour train:`, { id: train.id, trainNumber: train.trainNumber, cityName });
                 const isPast = new Date(train.departureTime) <= new Date();
                 
                 return `
@@ -1230,12 +1317,6 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
                          </svg>
                         </div>
                         <div>
-                          <div style="
-                            font-size: 13px;
-                            font-weight: 600;
-                            color: #3b82f6;
-                            margin-bottom: 2px;
-                          ">${normalizeCityName(train.departureStation)} → ${normalizeCityName(train.arrivalStation)}</div>
                           <div style="
                             font-size: 14px;
                             font-weight: 700;
@@ -1306,6 +1387,40 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
                         </div>
                       </div>
                     </div>
+                    
+                    <!-- Bouton pour trajet de retour -->
+                    ${!isPast ? `
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 0, 0, 0.08);">
+                      <button
+                        onclick="console.log('🔧 Bouton cliqué:', { trainId: '${train.id}', cityName: '${cityName}', windowFunction: !!window.selectTripForReturn }); window.selectTripForReturn && window.selectTripForReturn('${train.id}', '${cityName}')"
+                        style="
+                          width: 100%;
+                          padding: 8px 12px;
+                          background: linear-gradient(135deg, #3b82f6, #2563eb);
+                          color: white;
+                          border: none;
+                          border-radius: 8px;
+                          font-size: 12px;
+                          font-weight: 600;
+                          cursor: pointer;
+                          transition: all 0.2s ease;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          gap: 6px;
+                          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+                        "
+                        onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(59, 130, 246, 0.4)'"
+                        onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(59, 130, 246, 0.3)'"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 11H1l6-6v4h8a4 4 0 0 1 0 8h-8v4l-6-6Z"/>
+                          <path d="M22 12h-3"/>
+                        </svg>
+                        Planifier le retour
+                      </button>
+                    </div>
+                    ` : ''}
                   </div>
                 `;
               }).join('')}
@@ -1360,6 +1475,27 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     };
   }, [filteredTrains]);
 
+  // Exposer la fonction pour sélectionner un trajet pour le retour
+  useEffect(() => {
+    (window as any).selectTripForReturn = (trainId: string, cityName: string) => {
+      console.log('🚀 selectTripForReturn appelée avec:', { trainId, cityName });
+      console.log('🚀 filteredTrains.length:', filteredTrains.length);
+      
+      const train = filteredTrains.find(t => t.id === trainId);
+      console.log('🚀 Train trouvé:', train);
+      
+      if (train) {
+        console.log('✅ Appel de handleTripClick');
+        handleTripClick(train, cityName);
+      } else {
+        console.error('❌ Train non trouvé avec id:', trainId);
+        console.log('📋 Trains disponibles:', filteredTrains.map(t => ({ id: t.id, station: t.arrivalStation })));
+      }
+    };
+    
+    console.log('🔧 Fonction selectTripForReturn exposée, trains:', filteredTrains.length);
+  }, [filteredTrains, handleTripClick]);
+
   // Fermer le sélecteur de style quand on clique ailleurs
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1374,6 +1510,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
 
   if (hideHeader) {
     console.log('🗺️ Mode hideHeader activé');
+    console.log('🎭 État modal avant rendu:', { isReturnModalOpen, selectedOutboundTrip: !!selectedOutboundTrip });
     return (
       <div className="w-full h-screen flex flex-col relative">
         <div
@@ -1424,6 +1561,8 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       </div>
     );
   }
+
+  console.log('🎭 État modal avant rendu (mode normal):', { isReturnModalOpen, selectedOutboundTrip: !!selectedOutboundTrip });
 
   return (
     <div className="space-y-6">
@@ -1506,6 +1645,8 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           </div>
         )}
       </div>
+
+      {/* Modal géré maintenant dans App.tsx */}
     </div>
   );
 } 

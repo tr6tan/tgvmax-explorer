@@ -3,6 +3,7 @@ import TGVmaxMap from './components/TGVmaxMap';
 import SearchSettingsDock from './components/SearchSettingsDock';
 import StatsOverlay from './components/StatsOverlay';
 import OptimizedLoadingSpinner from './components/OptimizedLoadingSpinner';
+import ReturnTripModal from './components/ReturnTripModal';
 import { useTGVmaxData } from './hooks/useOptimizedDataFetching';
 import './styles/macos-design-system.css';
 import { MapStats } from './types';
@@ -10,11 +11,14 @@ import { MapStats } from './types';
 interface SearchSettings {
   departureCity: string;
   selectedDate: string;
+  destinationCity?: string;
 }
 
 function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettingsDock, setShowSettingsDock] = useState(true);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [selectedOutboundTrip, setSelectedOutboundTrip] = useState<any>(null);
   const [searchSettings, setSearchSettings] = useState<SearchSettings>(() => {
     // Définir la date par défaut à aujourd'hui
     const today = new Date();
@@ -51,20 +55,38 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Log des changements de settings
+  useEffect(() => {
+    console.log(`📝 SearchSettings updated:`, {
+      date: searchSettings.selectedDate,
+      departureCity: searchSettings.departureCity,
+      destinationCity: searchSettings.destinationCity
+    });
+  }, [searchSettings]);
+
   // Log des données récupérées
   useEffect(() => {
     if (trains && trains.length > 0) {
-      console.log(`✅ ${trains.length} trains récupérés pour le ${searchSettings.selectedDate}`);
-      console.log('Trains disponibles:', trains);
+      console.log(`✅ ${trains.length} trains récupérés pour le ${searchSettings.selectedDate} depuis ${searchSettings.departureCity}`);
+      console.log('Trains disponibles:', trains.slice(0, 3)); // Log que les 3 premiers pour pas spam
     } else if (!dataLoading && !dataError) {
-      console.warn(`⚠️ Aucun train trouvé pour le ${searchSettings.selectedDate}`);
+      console.warn(`⚠️ Aucun train trouvé pour le ${searchSettings.selectedDate} depuis ${searchSettings.departureCity}`);
     }
-  }, [trains, dataLoading, dataError, searchSettings.selectedDate]);
+  }, [trains, dataLoading, dataError, searchSettings.selectedDate, searchSettings.departureCity]);
 
   const handleSettingsChange = useCallback((newSettings: SearchSettings) => {
-    console.log(`🔄 Changement de paramètres: date=${newSettings.selectedDate}, ville=${newSettings.departureCity}`);
+    console.log(`🔄 Changement de paramètres:`, {
+      ancienneDate: searchSettings.selectedDate,
+      nouvelleDate: newSettings.selectedDate,
+      ancienneVille: searchSettings.departureCity,
+      nouvelleVille: newSettings.departureCity,
+      changeDetected: {
+        date: searchSettings.selectedDate !== newSettings.selectedDate,
+        ville: searchSettings.departureCity !== newSettings.departureCity
+      }
+    });
     setSearchSettings(newSettings);
-  }, []);
+  }, [searchSettings]);
 
   const handleMapStats = useCallback((stats: MapStats) => {
     setMapStats(stats);
@@ -72,6 +94,24 @@ function App() {
 
   const handleMapLoadingChange = useCallback((loading: boolean) => {
     setMapLoading(loading);
+  }, []);
+
+  const handleTripSelection = useCallback((trip: any) => {
+    console.log('🚅 Trajet sélectionné dans App:', trip);
+    setSelectedOutboundTrip(trip);
+    setIsReturnModalOpen(true);
+  }, []);
+
+  const handleReturnTripSearch = useCallback((returnDate: string) => {
+    console.log('🔍 Recherche retour pour le:', returnDate);
+    // TODO: Implémenter la recherche de retour
+    setIsReturnModalOpen(false);
+  }, []);
+
+  const handleTripSave = useCallback((outbound: any, returnDate: string) => {
+    console.log('✅ Trajet aller + retour sauvegardé:', { outbound, returnDate });
+    // TODO: Implémenter la sauvegarde
+    setIsReturnModalOpen(false);
   }, []);
 
   // Affichage de l'état de chargement des données - seulement au premier chargement
@@ -164,6 +204,7 @@ function App() {
             trains={trains}
             onStats={handleMapStats}
             onLoadingChange={handleMapLoadingChange}
+            onTripSelection={handleTripSelection}
             hideHeader={true}
           />
 
@@ -199,6 +240,15 @@ function App() {
 
 
       </div>
+
+      {/* Modal de retour au niveau racine */}
+      <ReturnTripModal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        selectedTrip={selectedOutboundTrip}
+        onReturnTripSearch={handleReturnTripSearch}
+        onTripSave={handleTripSave}
+      />
     </div>
   );
 }

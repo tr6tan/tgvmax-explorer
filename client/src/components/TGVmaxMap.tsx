@@ -527,6 +527,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       setLoading(false);
       if (onLoadingChange) onLoadingChange(false);
     }
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [propsTrains, searchSettings.departureCity, searchSettings.selectedDate, onLoadingChange]);
 
   // 5. Mettre à jour filteredTrains quand allTrains change

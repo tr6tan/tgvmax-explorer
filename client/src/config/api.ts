@@ -2,7 +2,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 export const API_BASE_URL = isDevelopment 
   ? 'http://localhost:4000' 
-  : 'https://tgvmax-explorer.railway.internal'; // URL du backend déployé sur Railway
+  : 'https://tgvmax-explorer-production.up.railway.app'; // URL du backend déployé sur Railway
 
 export const API_ENDPOINTS = {
   TGVMAX_SEARCH: `${API_BASE_URL}/api/tgvmax/search`,

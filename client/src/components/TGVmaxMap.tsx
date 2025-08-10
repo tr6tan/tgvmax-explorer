@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Train, MapStats } from '../types';
+import { API_ENDPOINTS } from '../config/api';
 import 'leaflet/dist/leaflet.css';
 // import MapDestinationPopup from './MapDestinationPopup';
 import RightCityPanel from './RightCityPanel';
@@ -979,7 +980,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           console.log(`🔍 Recherche des coordonnées pour ${cityName} via notre proxy serveur...`);
           
           try {
-            const response = await fetch(`http://localhost:4000/api/google-places/search-city?cityName=${encodeURIComponent(cityName)}`);
+            const response = await fetch(`${API_ENDPOINTS.GOOGLE_PLACES_SEARCH}?cityName=${encodeURIComponent(cityName)}`);
             const data = await response.json();
             
             if (data.success && data.coordinates) {

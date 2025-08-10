@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 import axios from 'axios';
 
 interface OUISncfSearchProps {
@@ -33,7 +34,7 @@ export default function OUISncfSearch({ departureCity, selectedDate, currentTime
 
       console.log(`🔍 Recherche OUI.sncf depuis ${departureCity} pour le ${selectedDate}...`);
 
-      const response = await axios.get(`http://localhost:4000/api/ouisncf/search`, {
+              const response = await axios.get(API_ENDPOINTS.OUISNCF_SEARCH, {
         params: {
           from: departureCity,
           date: selectedDate

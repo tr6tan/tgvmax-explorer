@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 import axios from 'axios';
 
 interface SNCFOfficialExplorerProps {
@@ -46,7 +47,7 @@ export default function SNCFOfficialExplorer({ departureCity, selectedDate, curr
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:4000/api/sncf-official/journeys', {
+              const response = await axios.get(API_ENDPOINTS.SNCF_OFFICIAL_JOURNEYS, {
         params: {
           from: departureCity,
           to: 'Lyon',
@@ -73,7 +74,7 @@ export default function SNCFOfficialExplorer({ departureCity, selectedDate, curr
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('http://localhost:4000/api/sncf-official/departures', {
+              const response = await axios.get(API_ENDPOINTS.SNCF_OFFICIAL_DEPARTURES, {
         params: {
           station: 'Montparnasse',
           date: selectedDate,

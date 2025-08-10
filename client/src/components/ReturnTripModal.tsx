@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 import { ArrowLeft, Calendar, Clock, ArrowLeftRight } from 'lucide-react';
 import LiquidGlassDatePicker from './LiquidGlassDatePicker';
 import axios from 'axios';
@@ -93,7 +94,7 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
           try {
             console.log(`🔍 Recherche trajets retour ${selectedTrip.arrivalCity} → ${selectedTrip.departureCity} le ${date}`);
             
-            const response = await axios.get(`http://localhost:4000/api/tgvmax/search`, {
+            const response = await axios.get(API_ENDPOINTS.TGVMAX_SEARCH, {
               params: {
                 from: selectedTrip.arrivalCity,
                 date: date

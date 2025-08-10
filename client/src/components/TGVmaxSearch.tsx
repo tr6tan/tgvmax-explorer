@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 import axios from 'axios';
 
 interface TGVmaxSearchProps {
@@ -47,7 +48,7 @@ export default function TGVmaxSearch({ departureCity, selectedDate, currentTime 
 
       console.log(`🔍 Recherche TGVmax depuis ${departureCity} pour le ${selectedDate}...`);
 
-      const response = await axios.get(`http://localhost:4000/api/tgvmax/search`, {
+              const response = await axios.get(API_ENDPOINTS.TGVMAX_SEARCH, {
         params: {
           from: departureCity,
           date: selectedDate

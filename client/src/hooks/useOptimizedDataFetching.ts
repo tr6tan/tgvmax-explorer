@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 interface Train {
   id: string;
@@ -283,13 +284,13 @@ export function useOptimizedDataFetching<T>({
 
 // Hook spécialisé pour les données TGVmax
 export function useTGVmaxData(date: string, departureCity: string = 'Paris'): UseOptimizedDataFetchingReturn<Train[]> {
-  // Vider le cache si les paramètres changent pour forcer une nouvelle requête
-  const cacheKey = `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}-${JSON.stringify([date, departureCity])}`;
+  const url = `${API_ENDPOINTS.TGVMAX_SEARCH}?date=${date}&from=${encodeURIComponent(departureCity)}`;
+  const cacheKey = `${url}-${JSON.stringify([date, departureCity])}`;
   
   console.log('🎯 useTGVmaxData appelé avec:', { date, departureCity, cacheKey });
   
   return useOptimizedDataFetching<Train[]>({
-    url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}`,
+    url,
     dependencies: [date, departureCity],
     cacheTimeout: 0, // Désactiver complètement le cache pour debug
     retryAttempts: 1, // Réduire les tentatives pour accélérer
@@ -299,8 +300,9 @@ export function useTGVmaxData(date: string, departureCity: string = 'Paris'): Us
 
 // Hook pour les suggestions de villes  
 export function useCitySuggestions(query: string, date: string, departureCity: string = 'Paris'): UseOptimizedDataFetchingReturn<Train[]> {
+  const url = `${API_ENDPOINTS.TGVMAX_SEARCH}?date=${date}&from=${encodeURIComponent(departureCity)}`;
   return useOptimizedDataFetching<Train[]>({
-    url: `http://localhost:4000/api/tgvmax/search?date=${date}&from=${encodeURIComponent(departureCity)}`,
+    url,
     dependencies: [date, departureCity],
     cacheTimeout: 10 * 60 * 1000, // 10 minutes pour les suggestions
     retryAttempts: 1,

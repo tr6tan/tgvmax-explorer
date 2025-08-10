@@ -84,7 +84,8 @@ interface CityInfo {
   coordinates: [number, number];
 }
 
-// Cache pour les coordonnées des villes
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// Cache pour les coordonnées des villes (désactivé à l'usage direct)
 const cityCache: { [key: string]: CityInfo } = {
   // Coordonnées par défaut pour les villes principales
   'PARIS': { name: 'Paris', coordinates: [48.8566, 2.3522] },
@@ -127,6 +128,7 @@ const cityCache: { [key: string]: CityInfo } = {
   'VALENCE TGV': { name: 'Valence', coordinates: [44.9336, 4.7859] },
   'VENDOME VILLIERS SUR LOIR TGV': { name: 'Vendôme', coordinates: [47.7856, 1.0194] },
 };
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 // Fonction pour nettoyer et normaliser les noms de villes
 const normalizeCityName = (cityName: string): string => {
@@ -376,7 +378,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         mapInstanceRef.current = null;
       }
     };
-  }, []); // Remove currentMapStyle dependency to prevent re-initialization
+  }, []); // ne pas ajouter currentMapStyle pour éviter la ré-initialisation
 
 
 
@@ -523,7 +525,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       setLoading(false);
       if (onLoadingChange) onLoadingChange(false);
     }
-  }, [propsTrains, searchSettings.departureCity, searchSettings.selectedDate, onLoadingChange]); // Retirer isTrainFromSelectedCity des dépendances
+  }, [propsTrains, searchSettings.departureCity, searchSettings.selectedDate, onLoadingChange]);
 
   // 5. Mettre à jour filteredTrains quand allTrains change
   useEffect(() => {

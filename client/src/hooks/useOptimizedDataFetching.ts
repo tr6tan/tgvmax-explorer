@@ -64,6 +64,7 @@ export function useOptimizedDataFetching<T>({
   const depsKey = JSON.stringify(dependencies);
 
   // Fonction pour nettoyer le cache
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const cleanupCache = useCallback(() => {
     const now = Date.now();
     const keysToDelete: string[] = [];
@@ -81,6 +82,7 @@ export function useOptimizedDataFetching<T>({
   }, [cacheTimeout]);
 
   // Fonction pour nettoyer complètement le cache
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const clearAllCache = useCallback(() => {
     console.log(`🗑️ Nettoyage complet du cache - ${dataCache.size} entrées supprimées`);
     dataCache.clear();
@@ -390,7 +392,7 @@ export function useOptimizedDataFetching<T>({
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [url, depsKey, cacheTimeout, debounceMs]); // Retirer onSuccess, onError des dépendances pour éviter la boucle infinie
+  }, [url, depsKey, cacheTimeout, debounceMs]);
 
   // Nettoyage du cache périodiquement (seulement si cacheTimeout > 0)
   useEffect(() => {

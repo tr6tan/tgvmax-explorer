@@ -65,7 +65,9 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
   };
 
   const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    const day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    // Convertir pour que lundi = 0, mardi = 1, ..., dimanche = 6
+    return day === 0 ? 6 : day - 1;
   };
 
   const generateCalendarDays = () => {
@@ -139,7 +141,7 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
     'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
   ];
 
-  const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   const calendarDays = generateCalendarDays();
 

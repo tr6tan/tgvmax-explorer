@@ -74,6 +74,11 @@ function App() {
     }
   }, [trains, dataLoading, dataError, searchSettings.selectedDate, searchSettings.departureCity]);
 
+  // Log spécifique pour les changements de date
+  useEffect(() => {
+    console.log(`📅 Date changée: ${searchSettings.selectedDate} - Déclenchement de la recherche de trains`);
+  }, [searchSettings.selectedDate]);
+
   const handleSettingsChange = useCallback((newSettings: SearchSettings) => {
     console.log(`🔄 Changement de paramètres:`, {
       ancienneDate: searchSettings.selectedDate,

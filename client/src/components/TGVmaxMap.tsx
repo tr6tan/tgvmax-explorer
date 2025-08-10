@@ -608,19 +608,34 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     console.log('🚂 Mise à jour des trains depuis App.tsx...');
     console.log('🚂 propsTrains:', propsTrains?.length || 0);
     console.log('🚂 searchSettings.departureCity:', searchSettings.departureCity);
+    console.log('🚂 searchSettings.selectedDate:', searchSettings.selectedDate);
     
     if (propsTrains && propsTrains.length > 0) {
       console.log(`✅ ${propsTrains.length} trains reçus depuis App.tsx`);
       
-      // Filtrer pour ne garder que les trains partant de la ville sélectionnée
+      // Log des dates des trains reçus pour debug
+      const trainDates = Array.from(new Set(propsTrains.map(train => new Date(train.departureTime).toISOString().split('T')[0])));
+      console.log(`📅 Dates des trains reçus:`, trainDates);
+      console.log(`🎯 Date recherchée: ${searchSettings.selectedDate}`);
+      
+      // Filtrer pour ne garder que les trains partant de la ville sélectionnée ET de la date sélectionnée
       const filteredByDeparture = propsTrains.filter(train => {
+        // Vérifier d'abord la ville de départ
         const isFromCity = isTrainFromSelectedCity(train, searchSettings.departureCity);
+        
+        // Vérifier ensuite la date
+        const trainDate = new Date(train.departureTime).toISOString().split('T')[0];
+        const isCorrectDate = trainDate === searchSettings.selectedDate;
+        
         if (!isFromCity) {
-          console.log(`🚫 Train filtré: ${train.departureStation} ne correspond pas à ${searchSettings.departureCity}`);
+          console.log(`🚫 Train filtré (ville): ${train.departureStation} ne correspond pas à ${searchSettings.departureCity}`);
+        } else if (!isCorrectDate) {
+          console.log(`🚫 Train filtré (date): ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber}) - Date: ${trainDate} vs ${searchSettings.selectedDate}`);
         } else {
-          console.log(`✅ Train accepté: ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber})`);
+          console.log(`✅ Train accepté: ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber}) - Date: ${trainDate}`);
         }
-        return isFromCity;
+        
+        return isFromCity && isCorrectDate;
       });
       
       console.log(`🔍 ${filteredByDeparture.length} trains restants après filtrage par ville de départ`);
@@ -635,7 +650,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       setLoading(false);
       if (onLoadingChange) onLoadingChange(false);
     }
-  }, [propsTrains, searchSettings.departureCity, onLoadingChange, isTrainFromSelectedCity]);
+  }, [propsTrains, searchSettings.departureCity, searchSettings.selectedDate, onLoadingChange, isTrainFromSelectedCity]);
 
   // 5. Mettre à jour filteredTrains quand allTrains change
   useEffect(() => {
@@ -1238,31 +1253,43 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
                 justify-content: space-between;
               ">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                  <div>
-                    <h3 style="
-                      margin: 0;
-                      font-size: 18px;
-                      font-weight: 700;
-                      color: #1f2937;
-                    ">${cityName}</h3>
-                    <div style="
-                      margin: 4px 0 0 0;
-                      font-size: 14px;
-                      font-weight: 600;
-                      color: #3b82f6;
-                      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
-                      padding: 4px 8px;
-                      border-radius: 6px;
-                      border: 1px solid rgba(59, 130, 246, 0.2);
-                      display: inline-block;
-                    ">${normalizeCityName(cityTrains[0]?.departureStation || searchSettings.departureCity)} → ${cityName}</div>
-                    <p style="
-                      margin: 6px 0 0 0;
-                      font-size: 13px;
-                      color: #6b7280;
-                      font-weight: 500;
-                    ">${cityTrains.length} trajets disponibles</p>
-                  </div>
+                                      <div>
+                      <h3 style="
+                        margin: 0;
+                        font-size: 18px;
+                        font-weight: 700;
+                        color: #1f2937;
+                      ">${cityName}</h3>
+                      <div style="
+                        margin: 4px 0 0 0;
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: #3b82f6;
+                        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+                        padding: 4px 8px;
+                        border-radius: 6px;
+                        border: 1px solid rgba(59, 130, 246, 0.2);
+                        display: inline-block;
+                      ">${normalizeCityName(cityTrains[0]?.departureStation || searchSettings.departureCity)} → ${cityName}</div>
+                      <div style="
+                        margin: 4px 0 0 0;
+                        font-size: 12px;
+                        color: #6b7280;
+                        font-weight: 500;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                      ">
+                        <span>📅 ${new Date(searchSettings.selectedDate).toLocaleDateString('fr-FR', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}</span>
+                        <span>•</span>
+                        <span>${cityTrains.length} trajets disponibles</span>
+                      </div>
+                    </div>
                 </div>
 
               </div>
@@ -1301,23 +1328,6 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
                       margin-bottom: 8px;
                     ">
                       <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="
-                          width: 32px;
-                          height: 32px;
-                          background: linear-gradient(135deg, #10b981, #059669);
-                          border-radius: 8px;
-                          display: flex;
-                          align-items: center;
-                          justify-content: center;
-                          color: white;
-                          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-                        ">
-                                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style="color: white;">
-                           <path d="M12 2L2 7l10 5 10-5-10-5Z"/>
-                           <path d="M2 17l10 5 10-5"/>
-                           <path d="M2 12l10 5 10-5"/>
-                         </svg>
-                        </div>
                         <div>
                           <div style="
                             font-size: 14px;
@@ -1329,7 +1339,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
                             font-size: 12px;
                             color: #1f2937;
                             font-weight: 600;
-                          ">${train.trainNumber} • ${train.duration}</div>
+                          ">${train.trainNumber}</div>
                         </div>
                       </div>
                       <div style="

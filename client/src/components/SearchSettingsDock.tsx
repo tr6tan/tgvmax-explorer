@@ -30,7 +30,7 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
     const handler = setTimeout(() => {
       console.log(`📤 SearchSettingsDock - Envoi vers App.tsx:`, settings);
       onSettingsChange(settings);
-    }, 500); // 500ms debounce
+    }, 100); // 100ms debounce pour plus de réactivité
 
     return () => {
       console.log(`🚫 SearchSettingsDock - Debounce annulé`);
@@ -136,7 +136,7 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
 
   if (isCollapsed) {
     return (
-      <div className="absolute top-4 left-4 z-[2000]">
+      <div className="absolute top-4 left-4 z-[9998]">
         <button
           onClick={() => setIsCollapsed(false)}
           className="
@@ -156,7 +156,7 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
   }
 
   return (
-    <div className="absolute top-4 left-4 z-[2000]">
+    <div className="absolute top-4 left-4 z-[9998]">
       {/* Container principal avec effet glassmorphism sophistiqué */}
       <div className="
         w-80 rounded-[34px] p-6
@@ -214,6 +214,7 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
               onChange={(city) => handleChange('departureCity', city)}
               suggestions={citySuggestions}
               placeholder="Paris"
+              zIndex={10000}
             />
           </div>
 
@@ -230,6 +231,7 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
                 onChange={(city) => handleChange('destinationCity', city)}
                 suggestions={citySuggestions}
                 placeholder="Rechercher une destination..."
+                zIndex={10001}
               />
               {settings.destinationCity && (
                 <button

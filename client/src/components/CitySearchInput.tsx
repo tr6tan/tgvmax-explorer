@@ -7,6 +7,7 @@ interface CitySearchInputProps {
   suggestions: string[];
   placeholder?: string;
   className?: string;
+  zIndex?: number;
 }
 
 const CitySearchInput: React.FC<CitySearchInputProps> = ({
@@ -14,7 +15,8 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
   onChange,
   suggestions,
   placeholder = "Paris",
-  className = ''
+  className = '',
+  zIndex = 9999
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
@@ -109,8 +111,8 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
     }
   };
 
-     return (
-     <div className={`relative z-[3000] ${className}`} ref={dropdownRef}>
+  return (
+    <div className={`relative z-[${zIndex}] ${className}`} ref={dropdownRef}>
       {/* Input de recherche */}
       <div className="relative">
         <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -134,14 +136,16 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
         </div>
       </div>
 
-             {/* Dropdown des suggestions */}
-       {isOpen && filteredSuggestions.length > 0 && (
-         <div className="
-           absolute top-full left-0 right-0 mt-2 z-[3000]
-           bg-white/90 backdrop-blur-[20px] border border-white/60
-           rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]
-           max-h-64 overflow-y-auto
-         ">
+      {/* Dropdown des suggestions */}
+      {isOpen && filteredSuggestions.length > 0 && (
+        <div className="
+          absolute top-full left-0 right-0 mt-2 z-[9999]
+          bg-white border border-gray-200
+          rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.15)]
+          max-h-64 overflow-y-auto
+        "
+        style={{ zIndex: zIndex + 1 }}
+        >
           <div className="p-2">
             {filteredSuggestions.map((city, index) => (
               <button
@@ -161,14 +165,16 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
         </div>
       )}
 
-             {/* Message si aucune suggestion */}
-       {isOpen && filteredSuggestions.length === 0 && searchTerm.length > 0 && (
-         <div className="
-           absolute top-full left-0 right-0 mt-2 z-[3000]
-           bg-white/90 backdrop-blur-[20px] border border-white/60
-           rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)]
-           p-4
-         ">
+      {/* Message si aucune suggestion */}
+      {isOpen && filteredSuggestions.length === 0 && searchTerm.length > 0 && (
+        <div className="
+          absolute top-full left-0 right-0 mt-2 z-[9999]
+          bg-white border border-gray-200
+          rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.15)]
+          p-4
+        "
+        style={{ zIndex: zIndex + 1 }}
+        >
           <div className="text-center text-sm text-gray-500">
             Aucune ville trouvée pour "{searchTerm}"
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 interface Train {
   id: string;
@@ -41,20 +41,16 @@ const RightCityPanel: React.FC<RightCityPanelProps> = ({ cityName, trains, isOpe
     return 'evening';
   };
 
-  const filteredTrains = trains.filter(train => {
-    // Toujours exclure les trains qui sont déjà partis
+  const filteredTrains = useMemo(() => trains.filter(train => {
     if (!isTrainAvailable(train.departureTime)) {
       return false;
     }
-    
     const available = filter === 'all' || 
       (filter === 'available' && isTrainAvailable(train.departureTime)) ||
       (filter === 'departed' && !isTrainAvailable(train.departureTime));
-    
     const timeMatch = timeFilter === 'all' || getTimeOfDay(train.departureTime) === timeFilter;
-    
     return available && timeMatch;
-  });
+  }), [trains, filter, timeFilter]);
 
   if (!isOpen) return null;
 

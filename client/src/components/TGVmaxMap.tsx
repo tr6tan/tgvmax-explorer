@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { Train, MapStats } from '../types';
 import { API_ENDPOINTS } from '../config/api';
 // import MapDestinationPopup from './MapDestinationPopup';
-import RightCityPanel from './RightCityPanel';
 // import StatsOverlay from './StatsOverlay';
 // import SearchSettingsDock from './SearchSettingsDock';
 // import ReturnTripModal from './ReturnTripModal';
 
 // Import Leaflet
 import L from 'leaflet';
+
+const RightCityPanel = lazy(() => import('./RightCityPanel'));
 
 interface MapStyle {
   id: string;
@@ -1440,12 +1441,14 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         {/* Filtres top-centre - temporairement supprimé */}
         
         {/* Panneau latéral droit */}
-        <RightCityPanel
-          cityName={selectedCity || ''}
-          trains={selectedCityTrains}
-          isOpen={isPanelOpen}
-          onClose={() => setIsPanelOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <RightCityPanel
+            cityName={selectedCity || ''}
+            trains={selectedCityTrains}
+            isOpen={isPanelOpen}
+            onClose={() => setIsPanelOpen(false)}
+          />
+        </Suspense>
       </div>
     );
   }

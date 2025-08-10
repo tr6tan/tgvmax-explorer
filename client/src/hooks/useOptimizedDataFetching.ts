@@ -229,10 +229,10 @@ export function useOptimizedDataFetching<T>({
       currentCacheKeys: Array.from(dataCache.keys())
     });
     
-    // Si on est en train de charger la même requête, attendre
-    if (loading) {
-      console.log(`⏳ Requête déjà en cours pour: ${url}`);
-      return;
+    // Annuler la requête précédente si elle existe
+    if (abortControllerRef.current) {
+      console.log(`🚫 Annulation de la requête précédente pour: ${url}`);
+      abortControllerRef.current.abort();
     }
 
     // Vérifier si on a déjà des données valides en cache
@@ -265,7 +265,7 @@ export function useOptimizedDataFetching<T>({
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [url, dependencies, cacheTimeout, fetchData, loading]); // Ajout des dépendances manquantes
+  }, [url, dependencies, cacheTimeout, fetchData]); // Retirer loading des dépendances
 
   // Nettoyage du cache périodiquement
   useEffect(() => {
@@ -292,7 +292,7 @@ export function useTGVmaxData(date: string, departureCity: string = 'Paris'): Us
   return useOptimizedDataFetching<Train[]>({
     url,
     dependencies: [date, departureCity],
-    cacheTimeout: 0, // Désactiver complètement le cache pour debug
+    cacheTimeout: 30 * 1000, // Cache de 30 secondes pour éviter les requêtes multiples
     retryAttempts: 1, // Réduire les tentatives pour accélérer
     retryDelay: 500 // Réduire le délai de retry
   });

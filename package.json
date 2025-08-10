@@ -29,5 +29,9 @@
   "devDependencies": {
     "nodemon": "^3.0.1",
     "concurrently": "^8.2.2"
+  },
+  "vercel": {
+    "buildCommand": "cd client && npm run build",
+    "outputDirectory": "client/build"
   }
 } 

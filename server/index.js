@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
 require('dotenv').config();
 
 // Logs de démarrage détaillés
@@ -16,6 +17,7 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 console.log('🔧 Configuration des middlewares...');
+app.use(compression());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true

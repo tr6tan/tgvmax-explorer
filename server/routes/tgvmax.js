@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 
+// Simple in-memory cache (per-process)
+const responseCache = new Map();
+const DEFAULT_TTL_MS = 30 * 1000; // 30s
+
 /**
  * GET /api/tgvmax/search
  * Recherche les trajets TGVmax à 0€
@@ -11,6 +15,14 @@ const axios = require('axios');
 router.get('/search', async (req, res) => {
   try {
     const { from, date } = req.query;
+    const cacheKey = `search:${from}:${date}`;
+
+    // Serve from cache if fresh
+    const cached = responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < DEFAULT_TTL_MS) {
+      res.set('Cache-Control', `public, max-age=${Math.floor(DEFAULT_TTL_MS / 1000)}`);
+      return res.json(cached.payload);
+    }
     
     console.log(`🔍 Recherche TGVmax depuis ${from} pour le ${date}...`);
 
@@ -156,7 +168,7 @@ router.get('/search', async (req, res) => {
       console.log(`🎯 ${convertedTrains.length} trajets TGVmax convertis`);
       console.log(`📊 Total places disponibles: ${convertedTrains.reduce((sum, train) => sum + (train.availableSeats || 0), 0)}`);
 
-      res.json({
+      const payload = {
         success: true,
         trains: convertedTrains,
         search: {
@@ -170,7 +182,13 @@ router.get('/search', async (req, res) => {
           totalSeats: convertedTrains.reduce((sum, train) => sum + (train.availableSeats || 0), 0),
           note: '✅ Vraies données TGVmax d\'Opendatasoft'
         }
-      });
+      };
+
+      // Cache response
+      responseCache.set(cacheKey, { payload, timestamp: Date.now() });
+
+      res.set('Cache-Control', `public, max-age=${Math.floor(DEFAULT_TTL_MS / 1000)}`);
+      res.json(payload);
 
     } catch (apiError) {
       console.error('❌ Erreur API TGVmax:', apiError.message);

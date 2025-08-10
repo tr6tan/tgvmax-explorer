@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import des styles améliorés */
 @import './styles/enhanced-components.css';
 
 body {

@@ -14,6 +14,15 @@ console.log('  - NODE_ENV:', process.env.NODE_ENV);
 console.log('  - PORT:', process.env.PORT);
 console.log('  - CORS_ORIGIN:', process.env.CORS_ORIGIN);
 
+// Diagnostic runtime Node et Web APIs
+console.log('🧩 Node version:', process.versions.node);
+console.log('🧩 globalThis.File présent:', typeof File !== 'undefined');
+// Polyfill minimal si nécessaire pour éviter l'erreur undici "File is not defined"
+if (typeof File === 'undefined') {
+  // eslint-disable-next-line no-global-assign
+  global.File = class {};
+}
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 

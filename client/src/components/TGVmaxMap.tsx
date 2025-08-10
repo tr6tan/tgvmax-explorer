@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
 import { Train, MapStats } from '../types';
 import 'leaflet/dist/leaflet.css';
 // import MapDestinationPopup from './MapDestinationPopup';
@@ -273,46 +272,12 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
   const [selectedCityTrains, setSelectedCityTrains] = useState<Train[]>([]);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
-  // États pour les trajets aller/retour et le modal
-  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
-  const [savedTrips, setSavedTrips] = useState<{outbound: SelectedTrip | null, returnDate: string | null}>({
-    outbound: null,
-    returnDate: null
-  });
+
 
   // Debug: Log des props reçues
   console.log('🗺️ TGVmaxMap props:', { searchSettings, apiType, hideHeader });
 
-  // Fonction pour sauvegarder les trajets dans localStorage
-  const saveTripsToStorage = useCallback((trips: {outbound: SelectedTrip | null, returnDate: string | null}) => {
-    try {
-      localStorage.setItem('tgvmax_saved_trips', JSON.stringify(trips));
-      console.log('💾 Trajets sauvegardés:', trips);
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde localStorage:', error);
-    }
-  }, []);
 
-  // Fonction pour charger les trajets depuis localStorage
-  const loadTripsFromStorage = useCallback(() => {
-    try {
-      const saved = localStorage.getItem('tgvmax_saved_trips');
-      if (saved) {
-        const trips = JSON.parse(saved);
-        setSavedTrips(trips);
-        console.log('📂 Trajets chargés:', trips);
-        return trips;
-      }
-    } catch (error) {
-      console.error('❌ Erreur chargement localStorage:', error);
-    }
-    return { outbound: null, returnDate: null };
-  }, []);
-
-  // Charger les trajets sauvegardés au montage
-  useEffect(() => {
-    loadTripsFromStorage();
-  }, [loadTripsFromStorage]);
 
   // Fonction pour gérer le clic sur un trajet (ouverture modal retour)
   const handleTripClick = useCallback((train: Train, cityName: string) => {
@@ -1128,7 +1093,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           return cityImages[cityName] || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop';
         };
 
-        const getCityImageUrl = await getCityImage(cityName);
+        await getCityImage(cityName);
 
         const popupHtml = `
           <div style="
@@ -1433,7 +1398,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
 
   if (hideHeader) {
     console.log('🗺️ Mode hideHeader activé');
-            console.log('🎭 État modal avant rendu:', { isReturnModalOpen });
+        
     return (
       <div className="w-full h-screen flex flex-col relative">
         <div
@@ -1485,7 +1450,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     );
   }
 
-          console.log('🎭 État modal avant rendu (mode normal):', { isReturnModalOpen });
+      
 
   return (
     <div className="space-y-6">

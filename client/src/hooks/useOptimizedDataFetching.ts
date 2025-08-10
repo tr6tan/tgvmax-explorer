@@ -55,7 +55,7 @@ export function useOptimizedDataFetching<T>({
   const [progress, setProgress] = useState(0);
   
   const abortControllerRef = useRef<AbortController | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const retryCountRef = useRef(0);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -214,7 +214,7 @@ export function useOptimizedDataFetching<T>({
     const cacheKey = `${url}-${JSON.stringify(dependencies)}`;
     dataCache.delete(cacheKey);
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, url, dependencies]);
 
   // Effet principal - version simplifiée
   useEffect(() => {
@@ -264,7 +264,7 @@ export function useOptimizedDataFetching<T>({
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [url, JSON.stringify(dependencies)]); // Utiliser JSON.stringify pour une meilleure détection des changements
+  }, [url, dependencies, cacheTimeout, fetchData, loading]); // Ajout des dépendances manquantes
 
   // Nettoyage du cache périodiquement
   useEffect(() => {

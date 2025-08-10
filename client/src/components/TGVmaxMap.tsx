@@ -269,14 +269,11 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
   const linesRef = useRef<L.Polyline[]>([]);
   
   // États pour les filtres et le panneau
-  const [filter, setFilter] = useState<'all' | 'available' | 'departed'>('all');
-  const [timeFilter, setTimeFilter] = useState<'all' | 'morning' | 'afternoon' | 'evening'>('all');
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedCityTrains, setSelectedCityTrains] = useState<Train[]>([]);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   // États pour les trajets aller/retour et le modal
-  const [selectedOutboundTrip, setSelectedOutboundTrip] = useState<SelectedTrip | null>(null);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [savedTrips, setSavedTrips] = useState<{outbound: SelectedTrip | null, returnDate: string | null}>({
     outbound: null,
@@ -335,22 +332,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     }
   }, [searchSettings, onTripSelection]);
 
-  // Fonction pour gérer la recherche de retour
-  const handleReturnTripSearch = useCallback((returnDate: string) => {
-    console.log('🔍 Recherche retour pour le:', returnDate);
-    // TODO: Implémenter la recherche de retour
-    // Pour l'instant, on ferme juste le modal
-    setIsReturnModalOpen(false);
-  }, []);
 
-  // Fonction pour sauvegarder le trajet complet (aller + date retour)
-  const handleTripSave = useCallback((outbound: SelectedTrip, returnDate: string) => {
-    const trips = { outbound, returnDate };
-    setSavedTrips(trips);
-    saveTripsToStorage(trips);
-    setIsReturnModalOpen(false);
-    console.log('✅ Trajet aller + retour sauvegardé');
-  }, [saveTripsToStorage]);
 
   // Fonction pour changer le style de carte
   const changeMapStyle = useCallback((styleId: string) => {
@@ -487,51 +469,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     };
   }, [currentMapStyle]);
 
-  // 2. Chargement des trajets
-  const fetchTrains = useCallback(async () => {
-    console.log('🚂 Chargement des trajets...');
-    console.log('🚂 Paramètres:', { departureCity: searchSettings.departureCity, date: searchSettings.selectedDate });
-    
-    setLoading(true);
-    if (onLoadingChange) onLoadingChange(true);
-    setError(null);
-    
-    try {
-      let endpoint;
-      if (apiType === 'tgvmax') {
-        endpoint = '/api/tgvmax/search';
-      } else if (apiType === 'ouisncf') {
-        endpoint = '/api/ouisncf/search';
-      } else {
-        endpoint = '/api/sncf-official/journeys';
-      }
-      
-      console.log('🚂 Appel API:', `http://localhost:4000${endpoint}`);
-      
-      const response = await axios.get(`http://localhost:4000${endpoint}`, {
-        params: { from: searchSettings.departureCity, date: searchSettings.selectedDate }
-      });
-      
-      console.log('🚂 Réponse API:', response.data);
-      
-      if (response.data.success) {
-        const fetchedTrains = response.data.trains || [];
-        console.log('🚂 Premier train de l\'API:', fetchedTrains[0]);
-        console.log('🚂 Structure des trains:', fetchedTrains.slice(0, 3));
-        setAllTrains(fetchedTrains);
-        console.log(`✅ ${fetchedTrains.length} trajets chargés`);
-      } else {
-        console.error('❌ Erreur API:', response.data);
-        setError('Erreur lors du chargement des trajets');
-      }
-    } catch (err) {
-      console.error('❌ Erreur API:', err);
-      setError('Erreur lors du chargement des trajets');
-    } finally {
-      setLoading(false);
-      if (onLoadingChange) onLoadingChange(false);
-    }
-  }, [searchSettings.departureCity, searchSettings.selectedDate, apiType, onLoadingChange]);
+
 
   // 3. Filtrage optimisé des trains avec memoization
   const filteredTrainsOptimized = useCallback(() => {
@@ -1190,33 +1128,6 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           return cityImages[cityName] || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop';
         };
 
-        const getTotalAvailableSeats = () => {
-          return cityTrains.reduce((total, train) => total + (Math.floor(Math.random() * 50) + 5), 0);
-        };
-
-        const getMinDuration = () => {
-          if (cityTrains.length === 0) return '--';
-          const durations = cityTrains.map(t => {
-            const durationStr = t.duration.replace('h', '');
-            return parseInt(durationStr) || 0;
-          }).filter(d => d > 0);
-          
-          if (durations.length === 0) return '--';
-          return Math.min(...durations) + 'h';
-        };
-
-        const getAverageDuration = () => {
-          if (cityTrains.length === 0) return '--';
-          const durations = cityTrains.map(t => {
-            const durationStr = t.duration.replace('h', '');
-            return parseInt(durationStr) || 0;
-          }).filter(d => d > 0);
-          
-          if (durations.length === 0) return '--';
-          const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
-          return Math.round(avg) + 'h';
-        };
-
         const getCityImageUrl = await getCityImage(cityName);
 
         const popupHtml = `
@@ -1522,7 +1433,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
 
   if (hideHeader) {
     console.log('🗺️ Mode hideHeader activé');
-    console.log('🎭 État modal avant rendu:', { isReturnModalOpen, selectedOutboundTrip: !!selectedOutboundTrip });
+            console.log('🎭 État modal avant rendu:', { isReturnModalOpen });
     return (
       <div className="w-full h-screen flex flex-col relative">
         <div
@@ -1574,7 +1485,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     );
   }
 
-  console.log('🎭 État modal avant rendu (mode normal):', { isReturnModalOpen, selectedOutboundTrip: !!selectedOutboundTrip });
+          console.log('🎭 État modal avant rendu (mode normal):', { isReturnModalOpen });
 
   return (
     <div className="space-y-6">

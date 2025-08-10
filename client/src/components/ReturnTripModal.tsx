@@ -73,71 +73,72 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
     return `${hours}h${minutes.toString().padStart(2, '0')}`;
   };
 
-  // Fonction pour rechercher les trajets retour
-  const searchReturnTrains = async (date: string) => {
-    if (!selectedTrip || !date) return;
-
-    setLoadingReturnTrains(true);
-    setReturnTrains([]);
-    setSelectedReturnTrain(null);
-
-    try {
-      console.log(`🔍 Recherche trajets retour ${selectedTrip.arrivalCity} → ${selectedTrip.departureCity} le ${date}`);
-      
-      const response = await axios.get(`http://localhost:4000/api/tgvmax/search`, {
-        params: {
-          from: selectedTrip.arrivalCity,
-          date: date
-        }
-      });
-
-      if (response.data.success && response.data.trains) {
-        // Filtrer les trains pour ne garder que ceux qui vont vers la ville de départ
-        const filteredTrains = response.data.trains.filter((train: Train) => {
-          const normalizedArrival = train.arrivalStation.toUpperCase().replace(/\s+/g, ' ').trim();
-          const normalizedDeparture = selectedTrip.departureCity.toUpperCase().replace(/\s+/g, ' ').trim();
-          
-          console.log(`🔍 Filtrage: "${normalizedArrival}" vs "${normalizedDeparture}"`);
-          
-          // Correspondances directes
-          if (normalizedArrival.includes(normalizedDeparture) || normalizedDeparture.includes(normalizedArrival)) {
-            return true;
-          }
-          
-          // Correspondances par mots clés (ex: PARIS vs PARIS (intramuros))
-          const arrivalWords = normalizedArrival.split(' ');
-          const departureWords = normalizedDeparture.split(' ');
-          
-          return arrivalWords.some(word => 
-            word.length > 3 && departureWords.some(dWord => 
-              dWord.length > 3 && (word.includes(dWord) || dWord.includes(word))
-            )
-          );
-        });
-
-        setReturnTrains(filteredTrains);
-        console.log(`✅ ${filteredTrains.length} trajets retour trouvés`);
-      } else {
-        console.log('❌ Aucun trajet retour trouvé');
-        setReturnTrains([]);
-      }
-    } catch (error) {
-      console.error('❌ Erreur recherche trajets retour:', error);
-      setReturnTrains([]);
-    } finally {
-      setLoadingReturnTrains(false);
-    }
-  };
-
   // Recherche automatique quand la date de retour change
   useEffect(() => {
     console.log('🔄 Effect date retour:', { returnDate, selectedTrip: !!selectedTrip, isOpen });
     
     if (returnDate && selectedTrip && isOpen) {
       console.log(`🕐 Recherche programmée dans 500ms pour le ${returnDate}`);
-      const timeoutId = setTimeout(() => {
+      const timeoutId = setTimeout(async () => {
         console.log(`🚀 Lancement recherche pour le ${returnDate}`);
-        searchReturnTrains(returnDate);
+        
+        // Fonction pour rechercher les trajets retour
+        const searchReturnTrains = async (date: string) => {
+          if (!selectedTrip || !date) return;
+
+          setLoadingReturnTrains(true);
+          setReturnTrains([]);
+          setSelectedReturnTrain(null);
+
+          try {
+            console.log(`🔍 Recherche trajets retour ${selectedTrip.arrivalCity} → ${selectedTrip.departureCity} le ${date}`);
+            
+            const response = await axios.get(`http://localhost:4000/api/tgvmax/search`, {
+              params: {
+                from: selectedTrip.arrivalCity,
+                date: date
+              }
+            });
+
+            if (response.data.success && response.data.trains) {
+              // Filtrer les trains pour ne garder que ceux qui vont vers la ville de départ
+              const filteredTrains = response.data.trains.filter((train: Train) => {
+                const normalizedArrival = train.arrivalStation.toUpperCase().replace(/\s+/g, ' ').trim();
+                const normalizedDeparture = selectedTrip.departureCity.toUpperCase().replace(/\s+/g, ' ').trim();
+                
+                console.log(`🔍 Filtrage: "${normalizedArrival}" vs "${normalizedDeparture}"`);
+                
+                // Correspondances directes
+                if (normalizedArrival.includes(normalizedDeparture) || normalizedDeparture.includes(normalizedArrival)) {
+                  return true;
+                }
+                
+                // Correspondances par mots clés (ex: PARIS vs PARIS (intramuros))
+                const arrivalWords = normalizedArrival.split(' ');
+                const departureWords = normalizedDeparture.split(' ');
+                
+                return arrivalWords.some(word => 
+                  word.length > 3 && departureWords.some(dWord => 
+                    dWord.length > 3 && (word.includes(dWord) || dWord.includes(word))
+                  )
+                );
+              });
+
+              setReturnTrains(filteredTrains);
+              console.log(`✅ ${filteredTrains.length} trajets retour trouvés`);
+            } else {
+              console.log('❌ Aucun trajet retour trouvé');
+              setReturnTrains([]);
+            }
+          } catch (error) {
+            console.error('❌ Erreur recherche trajets retour:', error);
+            setReturnTrains([]);
+          } finally {
+            setLoadingReturnTrains(false);
+          }
+        };
+        
+        await searchReturnTrains(returnDate);
       }, 500); // Debounce de 500ms
 
       return () => {
@@ -145,7 +146,7 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
         clearTimeout(timeoutId);
       };
     }
-  }, [returnDate, selectedTrip, isOpen, searchReturnTrains]);
+  }, [returnDate, selectedTrip, isOpen]);
 
   if (!isOpen || !selectedTrip) {
     return null;

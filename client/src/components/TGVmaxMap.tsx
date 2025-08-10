@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Train, MapStats } from '../types';
 import { API_ENDPOINTS } from '../config/api';
-import 'leaflet/dist/leaflet.css';
 // import MapDestinationPopup from './MapDestinationPopup';
 import RightCityPanel from './RightCityPanel';
 // import StatsOverlay from './StatsOverlay';

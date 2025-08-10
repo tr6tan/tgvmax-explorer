@@ -20,10 +20,31 @@ const PORT = process.env.PORT || 4000;
 // Middleware
 console.log('🔧 Configuration des middlewares...');
 app.use(compression());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
+// CORS avec whitelist (Vercel, localhost, etc.)
+const rawAllowed = (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+const defaultAllowed = [
+  'http://localhost:4001',
+  'http://localhost:3000',
+  'https://tgvmax-explorer.vercel.app'
+];
+const allowedOrigins = [...new Set([...defaultAllowed, ...rawAllowed])];
+const allowedSuffixes = ['.vercel.app'];
+console.log('🔐 CORS allowed origins:', allowedOrigins);
+
+const corsOptions = {
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // curl/SSR
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedSuffixes.some(sfx => origin.endsWith(sfx))) return callback(null, true);
+    return callback(new Error('Not allowed by CORS: ' + origin));
+  },
+  credentials: true,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: 'Content-Type,Authorization',
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 console.log('✅ Middlewares configurés');
 

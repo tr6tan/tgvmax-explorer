@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
 require('dotenv').config();
 
 // Logs de démarrage détaillés
@@ -16,6 +17,7 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 console.log('🔧 Configuration des middlewares...');
+app.use(compression());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true
@@ -31,12 +33,14 @@ try {
   const sncfExplorerRoutes = require('./routes/sncf-explorer');
   const googlePlacesRoutes = require('./routes/google-places');
   const placesRoutes = require('./routes/places');
+  const allTrainsRoutes = require('./routes/allTrains');
 
   app.use('/api/tgvmax', tgvmaxRoutes);
   app.use('/api/ouisncf', ouisncfRoutes);
   app.use('/api/sncf-explorer', sncfExplorerRoutes);
   app.use('/api/google-places', googlePlacesRoutes);
   app.use('/api/places', placesRoutes);
+  app.use('/api/all-trains', allTrainsRoutes);
   console.log('✅ Routes API chargées avec succès');
 } catch (error) {
   console.error('❌ Erreur lors du chargement des routes:', error.message);

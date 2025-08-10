@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import TGVmaxMap from './components/TGVmaxMap';
-import SearchSettingsDock from './components/SearchSettingsDock';
-// import StatsOverlay from './components/StatsOverlay';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import OptimizedLoadingSpinner from './components/OptimizedLoadingSpinner';
-import ReturnTripModal from './components/ReturnTripModal';
 import { useTGVmaxData } from './hooks/useOptimizedDataFetching';
 import './styles/macos-design-system.css';
 import { MapStats } from './types';
+
+// Lazy-loaded heavy components
+const TGVmaxMap = lazy(() => import('./components/TGVmaxMap'));
+const SearchSettingsDock = lazy(() => import('./components/SearchSettingsDock'));
+const ReturnTripModal = lazy(() => import('./components/ReturnTripModal'));
 
 interface SearchSettings {
   departureCity: string;
@@ -78,6 +79,9 @@ function App() {
   useEffect(() => {
     console.log(`📅 Date changée: ${searchSettings.selectedDate} - Déclenchement de la recherche de trains`);
   }, [searchSettings.selectedDate]);
+
+  // Supprimer le useEffect qui cause la boucle infinie
+  // Le hook useTGVmaxData gère déjà automatiquement les changements de date
 
   const handleSettingsChange = useCallback((newSettings: SearchSettings) => {
     console.log(`🔄 Changement de paramètres:`, {
@@ -202,26 +206,35 @@ function App() {
         {/* Main content area */}
         <div className="flex-1 relative" style={{ height: 'calc(100vh - 120px)' }}>
           {/* Full-screen Map */}
-          <TGVmaxMap
-            searchSettings={searchSettings}
-            currentTime={currentTime}
-            apiType="tgvmax"
-            trains={trains}
-            onStats={handleMapStats}
-                                // onLoadingChange={handleMapLoadingChange}
-            onTripSelection={handleTripSelection}
-            hideHeader={true}
-          />
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-full">
+                <OptimizedLoadingSpinner size="large" variant="progress" text="Chargement de la carte..." />
+              </div>
+            }
+          >
+            <TGVmaxMap
+              searchSettings={searchSettings}
+              currentTime={currentTime}
+              apiType="tgvmax"
+              trains={trains}
+              onStats={handleMapStats}
+                                  // onLoadingChange={handleMapLoadingChange}
+              onTripSelection={handleTripSelection}
+              hideHeader={true}
+            />
+          </Suspense>
 
           {/* Search Settings Dock */}
           {showSettingsDock && (
-            <SearchSettingsDock
-              initialSettings={searchSettings}
-              onSettingsChange={handleSettingsChange}
-              onClose={() => setShowSettingsDock(false)}
-            />
+            <Suspense fallback={null}>
+              <SearchSettingsDock
+                initialSettings={searchSettings}
+                onSettingsChange={handleSettingsChange}
+                onClose={() => setShowSettingsDock(false)}
+              />
+            </Suspense>
           )}
-
 
 
 
@@ -247,13 +260,15 @@ function App() {
       </div>
 
       {/* Modal de retour au niveau racine */}
-      <ReturnTripModal
-        isOpen={isReturnModalOpen}
-        onClose={() => setIsReturnModalOpen(false)}
-        selectedTrip={selectedOutboundTrip}
-        onReturnTripSearch={handleReturnTripSearch}
-        onTripSave={handleTripSave}
-      />
+      <Suspense fallback={null}>
+        <ReturnTripModal
+          isOpen={isReturnModalOpen}
+          onClose={() => setIsReturnModalOpen(false)}
+          selectedTrip={selectedOutboundTrip}
+          onReturnTripSearch={handleReturnTripSearch}
+          onTripSave={handleTripSave}
+        />
+      </Suspense>
     </div>
   );
 }

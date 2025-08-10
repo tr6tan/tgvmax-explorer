@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Train, MapStats } from '../types';
 import { API_ENDPOINTS } from '../config/api';
-import 'leaflet/dist/leaflet.css';
 // import MapDestinationPopup from './MapDestinationPopup';
 import RightCityPanel from './RightCityPanel';
 // import StatsOverlay from './StatsOverlay';
@@ -262,6 +261,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
   const [currentMapStyle, setCurrentMapStyle] = useState('osm');
   const [showStyleSelector, setShowStyleSelector] = useState(false);
   const [currentTileLayer, setCurrentTileLayer] = useState<L.TileLayer | null>(null);
+  const [isChangingStyle, setIsChangingStyle] = useState(false);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -302,44 +302,66 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
 
   // Fonction pour changer le style de carte
   const changeMapStyle = useCallback((styleId: string) => {
-    if (!mapInstanceRef.current || !currentTileLayer) return;
+    if (!mapInstanceRef.current || isChangingStyle) return;
     
     const newStyle = MAP_STYLES.find(s => s.id === styleId);
-    if (!newStyle) return;
+    if (!newStyle || newStyle.id === currentMapStyle) return;
     
     const map = mapInstanceRef.current;
     
-    // Supprimer l'ancien layer
-    map.removeLayer(currentTileLayer);
+    setIsChangingStyle(true);
     
-    // Ajouter le nouveau layer
-    const newTileLayer = L.tileLayer(newStyle.url, {
-      attribution: newStyle.attribution
-    }).addTo(map);
-    
-    // Mettre à jour les états
-    setCurrentTileLayer(newTileLayer);
-    setCurrentMapStyle(styleId);
-    setShowStyleSelector(false);
-    
-    // S'assurer que le nouveau layer est en arrière-plan
-    newTileLayer.bringToBack();
-    
-    // Remettre les marqueurs et lignes au premier plan
-    markersRef.current.forEach(marker => {
-      if (map.hasLayer(marker)) {
-        // Les marqueurs sont automatiquement au premier plan
+    try {
+      // Supprimer l'ancien layer s'il existe
+      if (currentTileLayer && map.hasLayer(currentTileLayer)) {
+        map.removeLayer(currentTileLayer);
       }
-    });
-    
-    linesRef.current.forEach(line => {
-      if (map.hasLayer(line)) {
-        line.bringToFront();
+      
+      // Ajouter le nouveau layer
+      const newTileLayer = L.tileLayer(newStyle.url, {
+        attribution: newStyle.attribution,
+        maxZoom: 18
+      }).addTo(mapInstanceRef.current);
+      
+      // Mettre à jour les états
+      setCurrentTileLayer(newTileLayer);
+      setCurrentMapStyle(styleId);
+      setShowStyleSelector(false);
+      
+      // S'assurer que le nouveau layer est en arrière-plan
+      newTileLayer.bringToBack();
+      
+      // Remettre les marqueurs et lignes au premier plan
+      markersRef.current.forEach(marker => {
+        if (map.hasLayer(marker)) {
+          // Les marqueurs sont automatiquement au premier plan
+        }
+      });
+      
+      linesRef.current.forEach(line => {
+        if (map.hasLayer(line)) {
+          line.bringToFront();
+        }
+      });
+      
+      // Forcer le refresh de la carte
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+        setIsChangingStyle(false);
+      }, 200);
+      
+      console.log(`✅ Style changé vers: ${newStyle.name}`);
+    } catch (error) {
+      console.error('❌ Erreur lors du changement de style:', error);
+      setIsChangingStyle(false);
+      // En cas d'erreur, essayer de restaurer le style précédent
+      if (currentTileLayer && map.hasLayer(currentTileLayer)) {
+        setCurrentMapStyle(currentMapStyle);
       }
-    });
-    
-    console.log(`✅ Style changé vers: ${newStyle.name}`);
-  }, [currentTileLayer]);
+    }
+  }, [currentTileLayer, currentMapStyle, isChangingStyle]);
 
   // 1. Initialisation de la carte centrée sur la France
   useEffect(() => {
@@ -433,7 +455,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         mapInstanceRef.current = null;
       }
     };
-  }, [currentMapStyle]);
+  }, []); // Remove currentMapStyle dependency to prevent re-initialization
 
 
 
@@ -514,6 +536,15 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     console.log('🚂 searchSettings.departureCity:', searchSettings.departureCity);
     console.log('🚂 searchSettings.selectedDate:', searchSettings.selectedDate);
     
+    // Nettoyer immédiatement les données quand la date change
+    if (searchSettings.selectedDate) {
+      console.log(`🗑️ Nettoyage des données pour la nouvelle date: ${searchSettings.selectedDate}`);
+      setAllTrains([]);
+      setFilteredTrains([]);
+      setLoading(true);
+      if (onLoadingChange) onLoadingChange(true);
+    }
+    
     if (propsTrains && propsTrains.length > 0) {
       console.log(`✅ ${propsTrains.length} trains reçus depuis App.tsx`);
       
@@ -527,14 +558,15 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         // Vérifier d'abord la ville de départ
         const isFromCity = isTrainFromSelectedCity(train, searchSettings.departureCity);
         
-        // Vérifier ensuite la date
+        // Vérifier ensuite la date - IMPORTANT: Comparaison stricte
         const trainDate = new Date(train.departureTime).toISOString().split('T')[0];
         const isCorrectDate = trainDate === searchSettings.selectedDate;
         
+        // Log détaillé pour debug
         if (!isFromCity) {
           console.log(`🚫 Train filtré (ville): ${train.departureStation} ne correspond pas à ${searchSettings.departureCity}`);
         } else if (!isCorrectDate) {
-          console.log(`🚫 Train filtré (date): ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber}) - Date: ${trainDate} vs ${searchSettings.selectedDate}`);
+          console.log(`🚫 Train filtré (date): ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber}) - Date train: ${trainDate} vs Date recherchée: ${searchSettings.selectedDate}`);
         } else {
           console.log(`✅ Train accepté: ${train.departureStation} → ${train.arrivalStation} (${train.trainNumber}) - Date: ${trainDate}`);
         }
@@ -542,7 +574,23 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         return isFromCity && isCorrectDate;
       });
       
-      console.log(`🔍 ${filteredByDeparture.length} trains restants après filtrage par ville de départ`);
+      console.log(`🔍 ${filteredByDeparture.length} trains restants après filtrage par ville de départ ET date`);
+      
+      // Vérifier si on a des trains pour la date sélectionnée
+      if (filteredByDeparture.length === 0) {
+        console.warn(`⚠️ Aucun train trouvé pour la date ${searchSettings.selectedDate} depuis ${searchSettings.departureCity}`);
+        console.log(`📊 Statistiques des dates disponibles:`, trainDates.reduce((acc, date) => {
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>));
+      } else {
+        // Vérifier que tous les trains filtrés ont la bonne date
+        const filteredDates = Array.from(new Set(filteredByDeparture.map(train => new Date(train.departureTime).toISOString().split('T')[0])));
+        console.log(`✅ Dates des trains filtrés:`, filteredDates);
+        if (filteredDates.length > 1) {
+          console.error(`❌ ERREUR: Mélange de dates détecté dans les trains filtrés!`, filteredDates);
+        }
+      }
       
       setAllTrains(filteredByDeparture);
       setLoading(false);
@@ -554,7 +602,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       setLoading(false);
       if (onLoadingChange) onLoadingChange(false);
     }
-  }, [propsTrains, searchSettings.departureCity, searchSettings.selectedDate, onLoadingChange, isTrainFromSelectedCity]);
+  }, [propsTrains, searchSettings.departureCity, searchSettings.selectedDate, onLoadingChange]); // Retirer isTrainFromSelectedCity des dépendances
 
   // 5. Mettre à jour filteredTrains quand allTrains change
   useEffect(() => {
@@ -838,7 +886,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     });
 
     try {
-      const departureMarker = L.marker(departureCoords, { icon: departureIcon }).addTo(map);
+      const departureMarker = L.marker(departureCoords, { icon: departureIcon }).addTo(mapInstanceRef.current!);
       markersRef.current.push(departureMarker);
       console.log('✅ Marqueur de départ ajouté');
     } catch (error) {
@@ -1063,7 +1111,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           iconAnchor: [12, 12]
         });
 
-        const destinationMarker = L.marker(cityCoords, { icon: destinationIcon }).addTo(map);
+        const destinationMarker = L.marker(cityCoords, { icon: destinationIcon }).addTo(mapInstanceRef.current!);
         
         // Popup avec style glassmorphism sophistiqué et image de ville
         const getCityImage = async (cityName: string) => {
@@ -1333,7 +1381,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           opacity: lineOpacity,
           dashArray: '5, 5',
           className: 'connection-line'
-        }).addTo(map);
+        }).addTo(mapInstanceRef.current!);
         
         linesRef.current.push(line);
         console.log(`✅ Marqueur et ligne ajoutés pour ${cityName}`);
@@ -1343,9 +1391,9 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       }
 
       // Ajuster la vue pour voir tous les marqueurs
-      if (markersRef.current.length > 1) {
+      if (markersRef.current.length > 1 && mapInstanceRef.current) {
         const group = new L.FeatureGroup(markersRef.current);
-        map.fitBounds(group.getBounds().pad(0.1));
+        mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
         console.log('✅ Vue ajustée pour tous les marqueurs');
       }
     };
@@ -1411,14 +1459,29 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         {/* Sélecteur de style de carte */}
         <div className="absolute top-4 right-4 z-[1000] style-selector">
           <button
-            onClick={() => setShowStyleSelector(!showStyleSelector)}
-            className="relative flex items-center space-x-2 bg-black/8 backdrop-blur-[40px] border border-white/40 rounded-[18px] px-4 py-2.5 text-[14px] font-medium text-gray-900 tracking-tight hover:bg-black/12 transition-all duration-200 shadow-[0_12px_64px_rgba(0,0,0,0.08)] hover:shadow-[0_16px_80px_rgba(0,0,0,0.12)]"
+            onClick={() => !isChangingStyle && setShowStyleSelector(!showStyleSelector)}
+            disabled={isChangingStyle}
+            className={`relative flex items-center space-x-2 bg-black/8 backdrop-blur-[40px] border border-white/40 rounded-[18px] px-4 py-2.5 text-[14px] font-medium tracking-tight transition-all duration-200 shadow-[0_12px_64px_rgba(0,0,0,0.08)] hover:shadow-[0_16px_80px_rgba(0,0,0,0.12)] ${
+              isChangingStyle 
+                ? 'text-gray-500 cursor-not-allowed opacity-60' 
+                : 'text-gray-900 hover:bg-black/12'
+            }`}
           >
-            <span className="hidden sm:inline">Style: {MAP_STYLES.find(s => s.id === currentMapStyle)?.name}</span>
-            <span className="sm:hidden">Style</span>
-            <svg className={`w-4 h-4 transition-transform duration-200 ${showStyleSelector ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            {isChangingStyle ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                <span className="hidden sm:inline">Changement...</span>
+                <span className="sm:hidden">...</span>
+              </div>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Style: {MAP_STYLES.find(s => s.id === currentMapStyle)?.name}</span>
+                <span className="sm:hidden">Style</span>
+                <svg className={`w-4 h-4 transition-transform duration-200 ${showStyleSelector ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </>
+            )}
           </button>
           
           {showStyleSelector && (
@@ -1426,12 +1489,20 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
               {MAP_STYLES.map((style) => (
                 <button
                   key={style.id}
-                  onClick={() => changeMapStyle(style.id)}
-                  className={`w-full px-4 py-3 text-left text-[14px] font-medium transition-all duration-200 hover:bg-white/10 ${
-                    currentMapStyle === style.id ? 'bg-white/15 text-blue-600' : 'text-gray-900'
+                  onClick={() => !isChangingStyle && changeMapStyle(style.id)}
+                  disabled={isChangingStyle || currentMapStyle === style.id}
+                  className={`w-full px-4 py-3 text-left text-[14px] font-medium transition-all duration-200 ${
+                    isChangingStyle 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : currentMapStyle === style.id 
+                        ? 'bg-white/15 text-blue-600 cursor-default' 
+                        : 'text-gray-900 hover:bg-white/10 cursor-pointer'
                   }`}
                 >
                   {style.name}
+                  {currentMapStyle === style.id && (
+                    <span className="ml-2 text-blue-600">✓</span>
+                  )}
                 </button>
               ))}
             </div>

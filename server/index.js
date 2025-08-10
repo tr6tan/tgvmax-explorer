@@ -64,24 +64,24 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve React app
+// Serve React app (désactivé car le frontend est sur Vercel)
 if (process.env.NODE_ENV === 'production') {
-  console.log('🌐 Configuration pour la production...');
-  const buildPath = path.join(__dirname, '../client/build');
-  console.log('📁 Chemin du build:', buildPath);
+  console.log('🌐 Mode production - serveur API uniquement');
+  console.log('📡 Le frontend est déployé séparément sur Vercel');
   
-  try {
-    app.use(express.static(buildPath));
-    console.log('✅ Fichiers statiques configurés');
-    
-    app.get('*', (req, res) => {
-      console.log('📄 Demande de fichier:', req.path);
-      res.sendFile(path.join(buildPath, 'index.html'));
+  // Route racine pour indiquer que c'est un serveur API
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: 'TGVmax Explorer API Server',
+      status: 'running',
+      endpoints: {
+        test: '/api/test',
+        health: '/api/health',
+        tgvmax: '/api/tgvmax',
+        ouisncf: '/api/ouisncf'
+      }
     });
-    console.log('✅ Route catch-all configurée');
-  } catch (error) {
-    console.error('❌ Erreur lors de la configuration de la production:', error.message);
-  }
+  });
 } else {
   console.log('🔧 Mode développement - pas de fichiers statiques');
 }

@@ -257,6 +257,7 @@ export function useOptimizedDataFetching<T>({
   }, [fetchData, url, depsKey]);
 
   // Effet principal - version simplifiée
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     const cacheKey = `${url}-${depsKey}`;
     
@@ -393,6 +394,7 @@ export function useOptimizedDataFetching<T>({
       }
     };
   }, [url, depsKey, cacheTimeout, debounceMs]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Nettoyage du cache périodiquement (seulement si cacheTimeout > 0)
   useEffect(() => {

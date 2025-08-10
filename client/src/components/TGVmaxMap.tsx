@@ -286,6 +286,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     }
   }, [currentTileLayer, currentMapStyle, isChangingStyle]);
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   // 1. Initialisation de la carte centrée sur la France
   useEffect(() => {
     console.log('🗺️ Initialisation de la carte...');
@@ -378,7 +379,8 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         mapInstanceRef.current = null;
       }
     };
-  }, []); // ne pas ajouter currentMapStyle pour éviter la ré-initialisation
+  }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
 
 
@@ -649,7 +651,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     markersRef.current = [];
     linesRef.current = [];
 
-    const map = mapInstanceRef.current;
+    // const map = mapInstanceRef.current; // inutilisé
     
     // Coordonnées de départ - utiliser la ville sélectionnée
     const getDepartureCoordinates = (cityName: string): [number, number] => {

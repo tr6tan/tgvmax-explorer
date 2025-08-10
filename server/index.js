@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const compression = require('compression');
+// Charger d'abord l'.env à la racine si présent, puis celui du dossier server
 require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Logs de démarrage détaillés
 console.log('🚀 Démarrage du serveur TGVmax Explorer...');

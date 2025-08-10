@@ -20,38 +20,39 @@ router.get('/search', async (req, res) => {
     try {
       console.log(`📅 Recherche pour la date: ${date}`);
       
-      // Convertir la date au format YYYY/MM/DD pour l'API
-      const dateParts = date.split('-');
-      const formattedDate = `${dateParts[0]}/${dateParts[1]}/${dateParts[2]}`;
+      // Utiliser le format YYYY-MM-DD attendu par le dataset
+      const formattedDate = date;
       
       console.log(`📅 Date formatée pour l'API: ${formattedDate}`);
       
-      // Mapper les villes vers les noms de gares SNCF exacts
-      const cityToStation = {
-        'Paris': 'PARIS (intramuros)',
-        'Lyon': 'LYON (intramuros)',
-        'Marseille': 'MARSEILLE ST CHARLES',
-        'Bordeaux': 'BORDEAUX ST JEAN',
-        'Nantes': 'NANTES',
-        'Toulouse': 'TOULOUSE MATABIAU',
-        'Lille': 'LILLE (intramuros)',
-        'Strasbourg': 'STRASBOURG',
-        'Nice': 'NICE VILLE',
-        'Montpellier': 'MONTPELLIER ST ROCH',
-        'Rennes': 'RENNES',
-        'Reims': 'REIMS'
+      // Variantes d'origine par ville pour maximiser les résultats réels de l'API
+      const originVariantsByCity = {
+        'Paris': [
+          'PARIS (intramuros)',
+          'PARIS GARE DE LYON',
+          'PARIS MONTPARNASSE',
+          'PARIS NORD',
+          'PARIS EST',
+          'PARIS SAINT LAZARE'
+        ],
+        'Lyon': ['LYON PART DIEU', 'LYON PERRACHE'],
+        'Marseille': ['MARSEILLE ST CHARLES', 'MARSEILLE SAINT CHARLES'],
+        'Bordeaux': ['BORDEAUX ST JEAN', 'BORDEAUX SAINT JEAN'],
+        'Nantes': ['NANTES'],
+        'Toulouse': ['TOULOUSE MATABIAU'],
+        'Lille': ['LILLE EUROPE', 'LILLE FLANDRES'],
+        'Strasbourg': ['STRASBOURG'],
+        'Nice': ['NICE VILLE'],
+        'Montpellier': ['MONTPELLIER ST ROCH', 'MONTPELLIER SUD DE FRANCE'],
+        'Rennes': ['RENNES'],
+        'Reims': ['REIMS']
       };
+
+      const encodedDate = encodeURIComponent(`${formattedDate}`);
+      const encodedHappyCard = encodeURIComponent('OUI');
       
-      const stationName = cityToStation[from] || 'PARIS (intramuros)';
-      console.log(`🚉 Station recherchée: ${stationName}`);
-      
-      // Construire l'URL avec la syntaxe exacte qui fonctionne
-      const encodedDate = encodeURIComponent(`"${formattedDate}"`);
-      const encodedOrigin = encodeURIComponent(`"${stationName}"`);
-      const encodedHappyCard = encodeURIComponent('"OUI"');
-      
-      // Fonction pour récupérer tous les trajets avec pagination
-      const fetchAllTrains = async () => {
+      // Fonction pour récupérer tous les trajets avec pagination pour une origine donnée
+      const fetchAllTrainsForOrigin = async (originName) => {
         let allRecords = [];
         let offset = 0;
         const limit = 100; // Limite par requête
@@ -60,6 +61,7 @@ router.get('/search', async (req, res) => {
         console.log(`🔄 Récupération de tous les trajets avec pagination...`);
         
         while (hasMore) {
+          const encodedOrigin = encodeURIComponent(`${originName}`);
           const url = `${tgvmaxApiUrl}?limit=${limit}&offset=${offset}&refine=date%3A${encodedDate}&refine=origine%3A${encodedOrigin}&refine=od_happy_card%3A${encodedHappyCard}`;
           
           console.log(`📡 Requête ${Math.floor(offset/limit) + 1}: offset=${offset}, limit=${limit}`);
@@ -93,28 +95,22 @@ router.get('/search', async (req, res) => {
       };
       
       // Récupérer tous les trajets
-      const tgvmaxRecords = await fetchAllTrains();
-      
-      // Si pas assez de résultats, essayer sans filtre d'origine mais avec od_happy_card
-      if (tgvmaxRecords.length < 10) {
-        console.log(`⚠️ Peu de résultats, essai sans filtre d'origine...`);
-        try {
-          const fallbackUrl = `${tgvmaxApiUrl}?limit=100&refine=date%3A${encodedDate}&refine=od_happy_card%3A${encodedHappyCard}`;
-          const fallbackResponse = await axios.get(fallbackUrl, { timeout: 15000 });
-          const fallbackRecords = fallbackResponse.data.results || [];
-          console.log(`📊 ${fallbackRecords.length} trajets trouvés sans filtre d'origine`);
-          
-          if (fallbackRecords.length > tgvmaxRecords.length) {
-            tgvmaxRecords.length = 0;
-            tgvmaxRecords.push(...fallbackRecords);
-          }
-        } catch (fallbackError) {
-          console.log(`⚠️ Erreur avec le fallback: ${fallbackError.message}`);
-        }
+      let tgvmaxRecords = [];
+      const variants = originVariantsByCity[from] || [from];
+      console.log(`🚉 Variantes d'origine essayées pour "${from}":`, variants);
+      for (const originName of variants) {
+        console.log(`🔎 Essai avec origine: ${originName}`);
+        const records = await fetchAllTrainsForOrigin(originName);
+        tgvmaxRecords.push(...records);
+        // Si on a assez de résultats, on peut sortir tôt
+        if (tgvmaxRecords.length >= 50) break;
       }
       
+      // Si pas assez de résultats, essayer sans filtre d'origine mais avec od_happy_card
+      // Pas de fallback: si peu de résultats, on renvoie simplement les résultats obtenus
+      
       // Convertir les trajets TGVmax en format compatible
-      const convertedTrains = tgvmaxRecords.map((record, index) => {
+      const convertedTrainsRaw = tgvmaxRecords.map((record, index) => {
         // Calculer la durée
         const [departureHour, departureMinute] = record.heure_depart.split(':').map(Number);
         const [arrivalHour, arrivalMinute] = record.heure_arrivee.split(':').map(Number);
@@ -152,7 +148,13 @@ router.get('/search', async (req, res) => {
           note: '✅ Vraies données TGVmax'
         };
       });
+
+      // Enrichissement des coordonnées (ville/gares) côté serveur
+      const { enrichTrains } = require('../services/geoService');
+      const convertedTrains = await enrichTrains(convertedTrainsRaw);
       
+      // Pas de génération de données fallback en développement: on retourne uniquement des données réelles
+
       console.log(`🎯 ${convertedTrains.length} trajets TGVmax convertis`);
       console.log(`📊 Total places disponibles: ${convertedTrains.reduce((sum, train) => sum + (train.availableSeats || 0), 0)}`);
 
@@ -163,12 +165,12 @@ router.get('/search', async (req, res) => {
           from,
           date,
           totalTrains: convertedTrains.length,
-          source: 'API TGVmax Opendatasoft (Réelle)',
-          apiStatus: 'Connecté',
+          source: 'API TGVmax Opendatasoft',
+          apiStatus: convertedTrains.length > 0 ? 'Connecté' : 'Aucun résultat',
           totalRecords: tgvmaxRecords.length,
           convertedTrains: convertedTrains.length,
           totalSeats: convertedTrains.reduce((sum, train) => sum + (train.availableSeats || 0), 0),
-          note: '✅ Vraies données TGVmax d\'Opendatasoft'
+          note: 'Données réelles sans fallback'
         }
       });
 

@@ -60,6 +60,9 @@ export function useOptimizedDataFetching<T>({
   const retryCountRef = useRef(0);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Stabilise les dépendances pour éviter les re-renders inutiles et les annulations en boucle
+  const depsKey = JSON.stringify(dependencies);
+
   // Fonction pour nettoyer le cache
   const cleanupCache = useCallback(() => {
     const now = Date.now();
@@ -90,7 +93,7 @@ export function useOptimizedDataFetching<T>({
     }
 
     // Vérifier le cache
-    const cacheKey = `${url}-${JSON.stringify(dependencies)}`;
+    const cacheKey = `${url}-${depsKey}`;
     const cached = dataCache.get(cacheKey);
     
     // Si cacheTimeout est 0, forcer la suppression du cache
@@ -240,20 +243,20 @@ export function useOptimizedDataFetching<T>({
       executeRequest();
     }
 
-  }, [url, dependencies, cacheTimeout, onSuccess, onError, retryAttempts, retryDelay, debounceMs]);
+  }, [url, depsKey, cacheTimeout, onSuccess, onError, retryAttempts, retryDelay, debounceMs]);
 
   // Fonction pour forcer le refetch
   const refetch = useCallback(() => {
     console.log(`🔄 Forçage du refetch pour: ${url}`);
     // Supprimer du cache pour forcer un nouveau fetch
-    const cacheKey = `${url}-${JSON.stringify(dependencies)}`;
+    const cacheKey = `${url}-${depsKey}`;
     dataCache.delete(cacheKey);
     fetchData();
-  }, [fetchData, url, dependencies]);
+  }, [fetchData, url, depsKey]);
 
   // Effet principal - version simplifiée
   useEffect(() => {
-    const cacheKey = `${url}-${JSON.stringify(dependencies)}`;
+    const cacheKey = `${url}-${depsKey}`;
     
     console.log(`🔄 useEffect déclenché pour:`, { 
       url, 
@@ -322,20 +325,38 @@ export function useOptimizedDataFetching<T>({
         
         const result = await response.json();
         
+        // Unifier le format: toujours du type générique T
+        let processedData: T | undefined;
+        if (result && result.success && Array.isArray(result.trains)) {
+          processedData = (result.trains as unknown) as T;
+        } else if (Array.isArray(result)) {
+          processedData = (result as unknown) as T;
+        } else {
+          console.warn(`⚠️ Format de réponse inattendu pour: ${url}`, result);
+          processedData = undefined;
+        }
+
         clearInterval(progressInterval);
         setProgress(100);
-        setData(result);
+        
+        if (!processedData || (Array.isArray(processedData) && processedData.length === 0)) {
+          setData(undefined);
+          setLoading(false);
+          return;
+        }
+
+        setData(processedData as T);
         setLoading(false);
         
         // Mettre en cache seulement si cacheTimeout > 0
         if (cacheTimeout > 0) {
           dataCache.set(cacheKey, {
-            data: result,
+            data: processedData as T,
             timestamp: Date.now()
           });
         }
         
-        onSuccess?.(result);
+        onSuccess?.(processedData as T);
         
       } catch (error: any) {
         if (error.name === 'AbortError') {
@@ -369,7 +390,7 @@ export function useOptimizedDataFetching<T>({
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [url, dependencies, cacheTimeout, debounceMs]); // Retirer onSuccess, onError des dépendances pour éviter la boucle infinie
+  }, [url, depsKey, cacheTimeout, debounceMs]); // Retirer onSuccess, onError des dépendances pour éviter la boucle infinie
 
   // Nettoyage du cache périodiquement (seulement si cacheTimeout > 0)
   useEffect(() => {

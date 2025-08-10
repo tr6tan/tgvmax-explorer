@@ -1,0 +1,514 @@
+{
+  "PARIS": {
+    "lat": 48.8566,
+    "lng": 2.3522
+  },
+  "LYON": {
+    "lat": 45.7578,
+    "lng": 4.832
+  },
+  "MARSEILLE": {
+    "lat": 43.2965,
+    "lng": 5.3698
+  },
+  "BORDEAUX": {
+    "lat": 44.8378,
+    "lng": -0.5792
+  },
+  "NANTES": {
+    "lat": 47.2184,
+    "lng": -1.5536
+  },
+  "TOULOUSE": {
+    "lat": 43.6047,
+    "lng": 1.4442
+  },
+  "LILLE": {
+    "lat": 50.6292,
+    "lng": 3.0573
+  },
+  "STRASBOURG": {
+    "lat": 48.5734,
+    "lng": 7.7521
+  },
+  "NICE": {
+    "lat": 43.7102,
+    "lng": 7.262
+  },
+  "RENNES": {
+    "lat": 48.1173,
+    "lng": -1.6778
+  },
+  "DIJON": {
+    "lat": 47.322,
+    "lng": 5.0415
+  },
+  "REIMS": {
+    "lat": 49.2583,
+    "lng": 4.0317
+  },
+  "POITIERS": {
+    "lat": 46.5798429,
+    "lng": 0.3416875
+  },
+  "VALENCE": {
+    "lat": 44.9336,
+    "lng": 4.8924
+  },
+  "AIX EN PROVENCE": {
+    "lat": 43.5297,
+    "lng": 5.4474
+  },
+  "MONTPELLIER": {
+    "lat": 43.6108,
+    "lng": 3.8767
+  },
+  "LE MANS": {
+    "lat": 48.0061,
+    "lng": 0.1996
+  },
+  "ARRAS": {
+    "lat": 50.293,
+    "lng": 2.7789
+  },
+  "LENS": {
+    "lat": 50.433,
+    "lng": 2.8335
+  },
+  "LA ROCHELLE": {
+    "lat": 46.1603,
+    "lng": -1.1511
+  },
+  "GUINGAMP": {
+    "lat": 48.5634,
+    "lng": -3.1508
+  },
+  "MORLAIX": {
+    "lat": 48.5774,
+    "lng": -3.8292
+  },
+  "GRENOBLE": {
+    "lat": 45.1885,
+    "lng": 5.7245
+  },
+  "DUNKERQUE": {
+    "lat": 51.0344,
+    "lng": 2.3768
+  },
+  "RETHEL": {
+    "lat": 49.5072,
+    "lng": 4.3661
+  },
+  "ANNECY": {
+    "lat": 45.899247,
+    "lng": 6.129384
+  },
+  "BELFORT MONTBELIARD": {
+    "lat": 47.510356,
+    "lng": 6.798466
+  },
+  "SAINT PIERRE DES CORPS": {
+    "lat": 47.3898439,
+    "lng": 0.7224790000000001
+  },
+  "AIX LES BAINS": {
+    "lat": 45.692341,
+    "lng": 5.908998
+  },
+  "HAZEBROUCK": {
+    "lat": 50.7226113,
+    "lng": 2.5360331
+  },
+  "SAINT MAIXENT L ECOLE": {
+    "lat": 46.409657,
+    "lng": -0.2018603
+  },
+  "CHARLEVILLE MEZIERES": {
+    "lat": 49.7735712,
+    "lng": 4.7206939
+  },
+  "SEDAN": {
+    "lat": 49.7033759,
+    "lng": 4.9433409
+  },
+  "NIORT": {
+    "lat": 46.3239233,
+    "lng": -0.4646064
+  },
+  "VITRY LE FRANCOIS": {
+    "lat": 48.7262225,
+    "lng": 4.5851622
+  },
+  "SURGERES": {
+    "lat": 46.0986114,
+    "lng": -0.7635796
+  },
+  "BETHUNE": {
+    "lat": 50.5309351,
+    "lng": 2.6389115
+  },
+  "SAINT MALO": {
+    "lat": 48.649518,
+    "lng": -2.0260409
+  },
+  "VENDOME VILLIERS SUR LOIR": {
+    "lat": 47.8219823,
+    "lng": 1.0210112
+  },
+  "LANDERNEAU": {
+    "lat": 48.4514803,
+    "lng": -4.2557901
+  },
+  "MACON LOCHE": {
+    "lat": 46.2829122,
+    "lng": 4.7788492
+  },
+  "BESANCON VIOTTE": {
+    "lat": 47.2470171,
+    "lng": 6.0218662
+  },
+  "CHALONS EN CHAMPAGNE": {
+    "lat": 48.9566218,
+    "lng": 4.3628851
+  },
+  "CHATELLERAULT": {
+    "lat": 46.8147525,
+    "lng": 0.5450697999999999
+  },
+  "TOULON": {
+    "lat": 43.1256814,
+    "lng": 5.9284944
+  },
+  "CHAMPAGNE ARDENNE": {
+    "lat": 48.7934092,
+    "lng": 4.4725249
+  },
+  "DOUAI": {
+    "lat": 50.367874,
+    "lng": 3.080602
+  },
+  "LAVAL": {
+    "lat": 48.0783712,
+    "lng": -0.7670205999999999
+  },
+  "SAINT BRIEUC": {
+    "lat": 48.51245609999999,
+    "lng": -2.7678727
+  },
+  "VALENCIENNES": {
+    "lat": 50.357113,
+    "lng": 3.518332
+  },
+  "BESANCON": {
+    "lat": 47.237829,
+    "lng": 6.024053899999999
+  },
+  "BAR LE DUC": {
+    "lat": 48.7748253,
+    "lng": 5.1599327
+  },
+  "AVIGNON": {
+    "lat": 43.9486986,
+    "lng": 4.8059401
+  },
+  "BREST": {
+    "lat": 48.3899275,
+    "lng": -4.4855959
+  },
+  "CANNES": {
+    "lat": 43.5539499,
+    "lng": 7.0170217
+  },
+  "TOURS": {
+    "lat": 47.3897679,
+    "lng": 0.6891731999999999
+  },
+  "NIMES": {
+    "lat": 43.8338727,
+    "lng": 4.359999699999999
+  },
+  "MONTBARD": {
+    "lat": 47.62365519999999,
+    "lng": 4.3405303
+  },
+  "MULHOUSE": {
+    "lat": 47.750839,
+    "lng": 7.335888
+  },
+  "SAINT NAZAIRE": {
+    "lat": 47.2740959,
+    "lng": -2.2130288
+  },
+  "ANTIBES": {
+    "lat": 43.58041799999999,
+    "lng": 7.125102
+  },
+  "FUTUROSCOPE": {
+    "lat": 46.6666138,
+    "lng": 0.3674498
+  },
+  "SAINT RAPHAEL": {
+    "lat": 43.42519,
+    "lng": 6.76837
+  },
+  "DOL DE BRETAGNE": {
+    "lat": 48.5490484,
+    "lng": -1.7527082
+  },
+  "LA BAULE ESCOUBLAC": {
+    "lat": 47.2869183,
+    "lng": -2.3913777
+  },
+  "CHAMBERY CHALLES LES EAUX": {
+    "lat": 45.5710918,
+    "lng": 5.919783799999999
+  },
+  "LE CROISIC": {
+    "lat": 47.29431899999999,
+    "lng": -2.511908
+  },
+  "VITRE": {
+    "lat": 48.11990230000001,
+    "lng": -1.2054524
+  },
+  "RANG DU FLIERS VERTON BERCK": {
+    "lat": 50.4157597,
+    "lng": 1.6481332
+  },
+  "LAROQUEBROU BATIMENT VOYAGEURS": {
+    "lat": 44.968108,
+    "lng": 2.188877
+  },
+  "METZ": {
+    "lat": 49.11786009999999,
+    "lng": 6.1760223
+  },
+  "BRIVE LA GAILLARDE": {
+    "lat": 45.16229269999999,
+    "lng": 1.5267596
+  },
+  "ANGERS SAINT LAUD": {
+    "lat": 47.4646039,
+    "lng": -0.5561315
+  },
+  "ETAPLES LE TOUQUET": {
+    "lat": 50.521276,
+    "lng": 1.590675
+  },
+  "NEVERS": {
+    "lat": 46.99089600000001,
+    "lng": 3.162845
+  },
+  "BOULOGNE": {
+    "lat": 50.725231,
+    "lng": 1.613334
+  },
+  "MOULINS SUR ALLIER": {
+    "lat": 46.568059,
+    "lng": 3.334417
+  },
+  "BRETENOUX BIARS": {
+    "lat": 44.9268788,
+    "lng": 1.8457708
+  },
+  "CLERMONT FERRAND": {
+    "lat": 45.793516,
+    "lng": 3.0794951
+  },
+  "LE POULIGUEN": {
+    "lat": 47.27016320000001,
+    "lng": -2.4264713
+  },
+  "SARREBOURG": {
+    "lat": 48.732663,
+    "lng": 7.052587
+  },
+  "ARGENTON SUR CREUSE": {
+    "lat": 46.58891029999999,
+    "lng": 1.5190434
+  },
+  "VIERZON": {
+    "lat": 47.2252096,
+    "lng": 2.0732122
+  },
+  "LE CREUSOT MONTCEAU MONTCHANIN": {
+    "lat": 46.76533999999999,
+    "lng": 4.499429999999999
+  },
+  "SAINT DENIS PRES MARTEL": {
+    "lat": 44.94603,
+    "lng": 1.666238
+  },
+  "RIOM CHATEL GUYON": {
+    "lat": 45.8899614,
+    "lng": 3.1205167
+  },
+  "CALAIS FRETHUN": {
+    "lat": 50.917288,
+    "lng": 1.824342
+  },
+  "NANCY": {
+    "lat": 48.692054,
+    "lng": 6.184417
+  },
+  "LA SOUTERRAINE": {
+    "lat": 46.239087,
+    "lng": 1.482986
+  },
+  "DOLE": {
+    "lat": 47.09534,
+    "lng": 5.49081
+  },
+  "AURILLAC": {
+    "lat": 44.9332083,
+    "lng": 2.4482505
+  },
+  "LIMOGES BENEDICTINS": {
+    "lat": 45.83621,
+    "lng": 1.2674496
+  },
+  "LAMBALLE": {
+    "lat": 48.468637,
+    "lng": -2.517322
+  },
+  "CHATEAUROUX": {
+    "lat": 46.811434,
+    "lng": 1.686779
+  },
+  "LANNION": {
+    "lat": 48.732084,
+    "lng": -3.459144
+  },
+  "VICHY": {
+    "lat": 46.131859,
+    "lng": 3.425488
+  },
+  "LA ROCHE SUR YON": {
+    "lat": 46.6714317,
+    "lng": -1.4180749
+  },
+  "LES SABLES D'OLONNE": {
+    "lat": 46.5011991,
+    "lng": -1.7781025
+  },
+  "PORNICHET": {
+    "lat": 47.263426,
+    "lng": -2.340571
+  },
+  "SAVERNE": {
+    "lat": 48.741963,
+    "lng": 7.361647
+  },
+  "BIGANOS FACTURE": {
+    "lat": 44.6271178,
+    "lng": -0.9736296999999999
+  },
+  "THIONVILLE": {
+    "lat": 49.357328,
+    "lng": 6.1685835
+  },
+  "ANGOULEME": {
+    "lat": 45.6488766,
+    "lng": 0.1567288
+  },
+  "BETTEMBOURG LUX": {
+    "lat": 49.5095587,
+    "lng": 6.118887
+  },
+  "CROIX WASQUEHAL": {
+    "lat": 50.67857679999999,
+    "lng": 3.1380405
+  },
+  "QUIMPER": {
+    "lat": 47.9976492,
+    "lng": -4.0973449
+  },
+  "BOURG EN BRESSE": {
+    "lat": 46.20516749999999,
+    "lng": 5.2255007
+  },
+  "VANNES": {
+    "lat": 47.65861659999999,
+    "lng": -2.7599022
+  },
+  "REDON": {
+    "lat": 47.6515493,
+    "lng": -2.0835346
+  },
+  "AURAY": {
+    "lat": 47.6702982,
+    "lng": -2.9904557
+  },
+  "MONTELIMAR GARE SNCF": {
+    "lat": 44.5590194,
+    "lng": 4.7447475
+  },
+  "SABLE SUR SARTHE": {
+    "lat": 47.8406652,
+    "lng": -0.3359853
+  },
+  "LES ARCS DRAGUIGNAN": {
+    "lat": 43.4552462,
+    "lng": 6.4797829
+  },
+  "ARLES": {
+    "lat": 43.676647,
+    "lng": 4.6277769
+  },
+  "HYERES": {
+    "lat": 43.1198436,
+    "lng": 6.1285466
+  },
+  "MIRAMAS": {
+    "lat": 43.588896,
+    "lng": 5.002136
+  },
+  "ORANGE": {
+    "lat": 48.86707999999999,
+    "lng": 2.36361
+  },
+  "LIBOURNE": {
+    "lat": 44.9147896,
+    "lng": -0.2442292
+  },
+  "BELLEGARDE SUR VALSERINE GARE": {
+    "lat": 46.1108981,
+    "lng": 5.8259449
+  },
+  "MEUSE": {
+    "lat": 49.0824319,
+    "lng": 5.282399700000001
+  },
+  "TOURCOING": {
+    "lat": 50.7254967,
+    "lng": 3.1638772
+  },
+  "ARCACHON": {
+    "lat": 44.652297,
+    "lng": -1.1785016
+  },
+  "REMIREMONT": {
+    "lat": 48.015589,
+    "lng": 6.591716
+  },
+  "LORIENT": {
+    "lat": 47.7482524,
+    "lng": -3.3702449
+  },
+  "ROUBAIX": {
+    "lat": 50.6924529,
+    "lng": 3.1782753
+  },
+  "SAINT DIE": {
+    "lat": 48.2875504,
+    "lng": 6.944772899999999
+  },
+  "EPINAL": {
+    "lat": 48.172402,
+    "lng": 6.449403
+  },
+  "SAINT GERMAIN DES FOSSES": {
+    "lat": 46.206776,
+    "lng": 3.43472
+  }
+}

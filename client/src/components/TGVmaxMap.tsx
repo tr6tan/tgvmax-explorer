@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Train, MapStats } from '../types';
-import { API_ENDPOINTS } from '../config/api';
 // import MapDestinationPopup from './MapDestinationPopup';
 import RightCityPanel from './RightCityPanel';
 // import StatsOverlay from './StatsOverlay';
@@ -129,9 +128,6 @@ const cityCache: { [key: string]: CityInfo } = {
   'VENDOME VILLIERS SUR LOIR TGV': { name: 'Vendôme', coordinates: [47.7856, 1.0194] },
 };
 
-// Clé API Google Maps
-const GOOGLE_MAPS_API_KEY = 'AIzaSyB2JUQt8zn_2vnLr4C-87SWpfR0nufKY_Y';
-
 // Fonction pour nettoyer et normaliser les noms de villes
 const normalizeCityName = (cityName: string): string => {
   if (!cityName) return 'Inconnue';
@@ -149,82 +145,7 @@ const normalizeCityName = (cityName: string): string => {
   return normalized;
 };
 
-// Fonction pour récupérer les coordonnées via Google Places API
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getCityCoordinates = async (cityName: string): Promise<CityInfo | null> => {
-  const cleanCityName = normalizeCityName(cityName);
-  
-  // Vérifier d'abord le cache
-  if (cityCache[cleanCityName]) {
-    return cityCache[cleanCityName];
-  }
-
-  // Vérifier les coordonnées par défaut
-  const defaultCoords = cityCache[cityName.toUpperCase()];
-  if (defaultCoords) {
-    console.log(`✅ Coordonnées par défaut trouvées pour ${cityName}: [${defaultCoords.coordinates[0]}, ${defaultCoords.coordinates[1]}]`);
-    return defaultCoords;
-  }
-
-  // Si pas trouvé, utiliser l'API Google Places
-  try {
-    console.log(`🔍 Recherche des coordonnées pour ${cityName} via Google Places API...`);
-    
-    // D'abord, chercher le place_id avec l'API Places Search
-    const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(cityName + ', France')}&inputtype=textquery&fields=place_id&key=${GOOGLE_MAPS_API_KEY}`;
-    
-    const searchResponse = await fetch(searchUrl);
-    const searchData = await searchResponse.json();
-    
-    if (searchData.candidates && searchData.candidates.length > 0) {
-      const placeId = searchData.candidates[0].place_id;
-      console.log(`✅ Place ID trouvé pour ${cityName}: ${placeId}`);
-      
-      // Maintenant, récupérer les détails avec l'API Places Details
-      const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}?fields=id,displayName,location&key=${GOOGLE_MAPS_API_KEY}`;
-      
-      const detailsResponse = await fetch(detailsUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-          'X-Goog-FieldMask': 'id,displayName,location'
-        }
-      });
-      
-      const detailsData = await detailsResponse.json();
-      
-      if (detailsData.location) {
-        const coordinates: [number, number] = [
-          detailsData.location.latitude,
-          detailsData.location.longitude
-        ];
-        
-        const cityInfo: CityInfo = {
-          name: detailsData.displayName?.text || cityName,
-          coordinates
-        };
-        
-        // Mettre en cache
-        cityCache[cleanCityName] = cityInfo;
-        console.log(`✅ Coordonnées récupérées pour ${cityName}: [${coordinates[0]}, ${coordinates[1]}]`);
-        
-        return cityInfo;
-      }
-    }
-  } catch (error) {
-    console.error(`❌ Erreur lors de la récupération des coordonnées pour ${cityName}:`, error);
-  }
-
-  // Si aucune coordonnée trouvée, utiliser des coordonnées par défaut pour la France
-  console.log(`⚠️ Aucune coordonnée trouvée pour ${cityName}, utilisation de coordonnées par défaut`);
-  const defaultInfo: CityInfo = {
-    name: cleanCityName,
-    coordinates: [46.603354, 1.888334] // Centre de la France
-  };
-  
-  cityCache[cleanCityName] = defaultInfo;
-  return defaultInfo;
-};
+// Suppression des appels Google Places: on se limite aux coordonnées locales et à un fallback France
 
 // Fonction pour filtrer les trains selon les paramètres
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -678,7 +599,8 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     }
   }, [searchSettings.selectedDate]);
 
-  // 8. Affichage optimisé des marqueurs et lignes avec batch rendering
+  // 8. Affichage optimisé des marqueurs et lignes avec batch rendering et annulation
+  const renderTokenRef = useRef(0);
   useEffect(() => {
     console.log('🚀 Affichage optimisé des marqueurs...');
     console.log('🗺️ mapInstanceRef.current:', mapInstanceRef.current);
@@ -886,7 +808,11 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     });
 
     try {
-      const departureMarker = L.marker(departureCoords, { icon: departureIcon }).addTo(mapInstanceRef.current!);
+      const firstWithDepCoords = filteredTrains.find(t => (t as any).departureCoordinates);
+      const effectiveDepartureCoords = firstWithDepCoords && (firstWithDepCoords as any).departureCoordinates
+        ? [(firstWithDepCoords as any).departureCoordinates.lat, (firstWithDepCoords as any).departureCoordinates.lng] as [number, number]
+        : departureCoords;
+      const departureMarker = L.marker(effectiveDepartureCoords, { icon: departureIcon }).addTo(mapInstanceRef.current!);
       markersRef.current.push(departureMarker);
       console.log('✅ Marqueur de départ ajouté');
     } catch (error) {
@@ -907,9 +833,19 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
     console.log('🏙️ Détail des groupes:', cityGroups);
 
     // Marqueurs pour chaque ville de destination - points verts avec icône personnalisée
-    const processCities = async () => {
-      for (const [cityName, cityTrains] of Object.entries(cityGroups)) {
-        console.log(`🏙️ Traitement de la ville: ${cityName} (${cityTrains.length} trajets)`);
+    const token = ++renderTokenRef.current;
+    const cityEntries = Object.entries(cityGroups);
+    let index = 0;
+    const batchSize = 8; // nombre de villes par frame
+
+    const renderBatch = () => {
+      if (!mapInstanceRef.current) return;
+      if (token !== renderTokenRef.current) return; // annulé
+
+      const end = Math.min(index + batchSize, cityEntries.length);
+      for (; index < end; index++) {
+        const [cityName, cityTrains] = cityEntries[index];
+        // console.log(`🏙️ Ville: ${cityName} (${cityTrains.length})`);
         
         // Variable pour stocker les coordonnées de la ville
         let cityCoords: [number, number] | null = null;
@@ -1019,32 +955,19 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           'LE CREUSOT MONTCEAU MONTCHANIN': [46.8061, 4.4163],
         };
         
-        // Vérifier d'abord dans la base locale
-        if (cityCoordinates[cityName]) {
+        // 1) Coordonnées enrichies depuis l'API
+        const fromApi = cityTrains.find(t => (t as any).arrivalCoordinates && (t as any).arrivalCoordinates.lat && (t as any).arrivalCoordinates.lng) as any;
+        if (fromApi) {
+          cityCoords = [fromApi.arrivalCoordinates.lat, fromApi.arrivalCoordinates.lng];
+          console.log(`✅ Coordonnées API trouvées pour ${cityName}:`, cityCoords);
+        } else if (cityCoordinates[cityName]) {
+          // 2) Base locale
           cityCoords = cityCoordinates[cityName];
           console.log(`✅ Coordonnées locales trouvées pour ${cityName}:`, cityCoords);
         } else {
-          // Si pas dans la base locale, utiliser notre proxy serveur pour l'API Google Places
-          console.log(`🔍 Recherche des coordonnées pour ${cityName} via notre proxy serveur...`);
-          
-          try {
-            const response = await fetch(`${API_ENDPOINTS.GOOGLE_PLACES_SEARCH}?cityName=${encodeURIComponent(cityName)}`);
-            const data = await response.json();
-            
-            if (data.success && data.coordinates) {
-              cityCoords = [
-                data.coordinates.latitude,
-                data.coordinates.longitude
-              ];
-              
-              console.log(`✅ Coordonnées API trouvées pour ${cityName}: [${cityCoords[0]}, ${cityCoords[1]}]`);
-              console.log(`📍 Nom affiché: ${data.cityName}`);
-            } else {
-              console.log(`❌ Aucune coordonnée trouvée pour ${cityName}: ${data.error || 'Erreur inconnue'}`);
-            }
-          } catch (error) {
-            console.error(`❌ Erreur lors de la récupération des coordonnées pour ${cityName}:`, error);
-          }
+          // 3) Rien trouvé
+          cityCoords = null;
+          console.log(`❌ Coordonnées non trouvées pour ${cityName} — aucun marqueur créé`);
         }
         
         // Créer le marqueur seulement si les coordonnées sont trouvées
@@ -1114,35 +1037,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         const destinationMarker = L.marker(cityCoords, { icon: destinationIcon }).addTo(mapInstanceRef.current!);
         
         // Popup avec style glassmorphism sophistiqué et image de ville
-        const getCityImage = async (cityName: string) => {
-          // Images par défaut pour certaines villes
-          const cityImages: { [key: string]: string } = {
-            'Lyon': 'https://images.unsplash.com/photo-1565967511849-76a60a516170?w=400&h=200&fit=crop',
-            'Marseille': 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=200&fit=crop',
-            'Toulouse': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
-            'Bordeaux': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
-            'Nantes': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
-            'Strasbourg': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
-            'Montpellier': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop',
-          };
-          
-          // Essayer de récupérer une image via Google Places API
-          try {
-            const response = await fetch(`/api/places/search?query=${encodeURIComponent(cityName + ' France')}`);
-            if (response.ok) {
-              const data = await response.json();
-              if (data.photoUrl) {
-                return data.photoUrl;
-              }
-            }
-          } catch (error) {
-            console.log('Impossible de récupérer l\'image via API, utilisation de l\'image par défaut');
-          }
-          
-          return cityImages[cityName] || 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=200&fit=crop';
-        };
-
-        await getCityImage(cityName);
+        // Suppression des appels image Google Places; on conserve un style générique sans image
 
         const popupHtml = `
           <div style="
@@ -1384,21 +1279,26 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         }).addTo(mapInstanceRef.current!);
         
         linesRef.current.push(line);
-        console.log(`✅ Marqueur et ligne ajoutés pour ${cityName}`);
+        // console.log(`✅ Marqueur et ligne ajoutés pour ${cityName}`);
       } else {
-        console.log(`❌ Ville non située: ${cityName} - pas de marqueur créé`);
+        // console.log(`❌ Ville non située: ${cityName}`);
       }
       }
 
-      // Ajuster la vue pour voir tous les marqueurs
-      if (markersRef.current.length > 1 && mapInstanceRef.current) {
-        const group = new L.FeatureGroup(markersRef.current);
-        mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
-        console.log('✅ Vue ajustée pour tous les marqueurs');
+      if (index < cityEntries.length) {
+        if (token !== renderTokenRef.current) return; // annulé
+        requestAnimationFrame(renderBatch);
+      } else {
+        // Ajuster la vue pour voir tous les marqueurs
+        if (markersRef.current.length > 1 && mapInstanceRef.current) {
+          const group = new L.FeatureGroup(markersRef.current);
+          mapInstanceRef.current.fitBounds(group.getBounds().pad(0.1));
+          console.log('✅ Vue ajustée pour tous les marqueurs');
+        }
       }
     };
 
-    processCities();
+    requestAnimationFrame(renderBatch);
 
   }, [filteredTrains, searchSettings.departureCity, searchSettings.selectedDate, apiType]);
 

@@ -123,6 +123,11 @@ function App() {
     setIsReturnModalOpen(false);
   }, []);
 
+  // Calcul pour la barre de chargement des trains affichés sur la carte
+  const totalTrainsCount = Array.isArray(trains) ? trains.length : 0;
+  const displayedTrainsCount = mapStats.trainsCount || 0;
+  const displayedRatio = totalTrainsCount > 0 ? Math.min(100, Math.round((displayedTrainsCount / totalTrainsCount) * 100)) : 0;
+
   // Affichage de l'état de chargement des données - seulement au premier chargement
   if (dataLoading && !trains) {
     return (
@@ -248,8 +253,20 @@ function App() {
               <span className="hidden sm:inline">•</span>
               <span className="text-xs sm:text-sm">MAJ: {mapStats.lastUpdated ? new Date(mapStats.lastUpdated).toLocaleTimeString('fr-FR') : '--'}</span>
               <span className="hidden sm:inline">•</span>
-              <span>{trains.length} trains</span>
-              {dataLoading && trains && trains.length > 0 && (
+              <span>{totalTrainsCount} trains</span>
+              {/* Barre de chargement des trains affichés sur la carte */}
+              {totalTrainsCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden border border-gray-200/60">
+                    <div
+                      className={`h-full ${dataLoading ? 'bg-gradient-to-r from-blue-400 to-blue-600 animate-pulse' : 'bg-blue-600'}`}
+                      style={{ width: `${displayedRatio}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-gray-500 whitespace-nowrap">{displayedTrainsCount}/{totalTrainsCount}</span>
+                </div>
+              )}
+              {dataLoading && (
                 <span className="text-blue-600 text-xs sm:text-sm">🔄 Actualisation...</span>
               )}
             </div>

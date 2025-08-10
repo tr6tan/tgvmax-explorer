@@ -85,6 +85,9 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
         );
         if (exactMatch) {
           onChange(exactMatch);
+        } else {
+          // Propager quand même la saisie utilisateur
+          onChange(searchTerm);
         }
       }
     }, 150);
@@ -106,6 +109,10 @@ const CitySearchInput: React.FC<CitySearchInputProps> = ({
         const firstSuggestion = filteredSuggestions[0];
         setSearchTerm(firstSuggestion);
         onChange(firstSuggestion);
+        setIsOpen(false);
+      } else if (searchTerm.trim().length > 0) {
+        // Propager la saisie telle quelle
+        onChange(searchTerm.trim());
         setIsOpen(false);
       }
     }

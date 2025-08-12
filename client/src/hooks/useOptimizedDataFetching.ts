@@ -251,7 +251,7 @@ export function useOptimizedDataFetching<T>({
       executeRequest();
     }
 
-  }, [url, depsKey, cacheTimeout, onSuccess, onError, retryAttempts, retryDelay, debounceMs]);
+  }, [url, depsKey, cacheTimeout, onSuccess, onError, onMeta, retryAttempts, retryDelay, debounceMs]);
 
   // Fonction pour forcer le refetch
   const refetch = useCallback(() => {

@@ -27,6 +27,8 @@ interface UseOptimizedDataFetchingOptions<T> {
   onError?: (error: Error) => void;
   retryAttempts?: number;
   retryDelay?: number;
+  // Optionnel: récupérer des métadonnées (ex: result.search.returnFilter)
+  onMeta?: (meta: any) => void;
 }
 
 interface UseOptimizedDataFetchingReturn<T> {
@@ -48,7 +50,8 @@ export function useOptimizedDataFetching<T>({
   onSuccess,
   onError,
   retryAttempts = 3,
-  retryDelay = 1000
+  retryDelay = 1000,
+  onMeta
 }: UseOptimizedDataFetchingOptions<T>): UseOptimizedDataFetchingReturn<T> {
   const [data, setData] = useState<T | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -170,6 +173,9 @@ export function useOptimizedDataFetching<T>({
         if (result.success && Array.isArray(result.trains)) {
           // Format de réponse de l'API TGVmax
           console.log(`✅ Réponse API TGVmax reçue: ${result.trains.length} trains`);
+          if (onMeta) {
+            try { onMeta(result.search || null); } catch {}
+          }
           processedData = result.trains;
         } else if (Array.isArray(result)) {
           // Format de réponse directe (array)
@@ -331,6 +337,9 @@ export function useOptimizedDataFetching<T>({
         // Unifier le format: toujours du type générique T
         let processedData: T | undefined;
         if (result && result.success && Array.isArray(result.trains)) {
+          if (onMeta) {
+            try { onMeta(result.search || null); } catch {}
+          }
           processedData = (result.trains as unknown) as T;
         } else if (Array.isArray(result)) {
           processedData = (result as unknown) as T;
@@ -421,8 +430,21 @@ export function useOptimizedDataFetching<T>({
 }
 
 // Hook spécialisé pour les données TGVmax
-export function useTGVmaxData(date: string, departureCity: string = 'Paris'): UseOptimizedDataFetchingReturn<Train[]> {
-  const url = `${API_ENDPOINTS.TGVMAX_SEARCH}?date=${date}&from=${encodeURIComponent(departureCity)}`;
+type TgvReturnOption = { requireReturnWithin3Days?: boolean; returnDays?: number[] };
+
+export function useTGVmaxData(
+  date: string,
+  departureCity: string = 'Paris',
+  options: TgvReturnOption = {}
+): UseOptimizedDataFetchingReturn<Train[]> {
+  const params = new URLSearchParams({ date, from: departureCity });
+  if (options.requireReturnWithin3Days) {
+    params.set('requireReturnWithinDays', '3');
+    if (options.returnDays && options.returnDays.length) {
+      params.set('returnDays', options.returnDays.sort((a,b)=>a-b).join(','));
+    }
+  }
+  const url = `${API_ENDPOINTS.TGVMAX_SEARCH}?${params.toString()}`;
   
   console.log('🎯 useTGVmaxData appelé avec:', { date, departureCity, url });
   
@@ -431,7 +453,7 @@ export function useTGVmaxData(date: string, departureCity: string = 'Paris'): Us
   
   return useOptimizedDataFetching<Train[]>({
     url,
-    dependencies: [date, departureCity],
+    dependencies: [date, departureCity, options.requireReturnWithin3Days],
     cacheTimeout,
     debounceMs: 0, // Supprimer le debounce pour les données critiques
     retryAttempts: 1,

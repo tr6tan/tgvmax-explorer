@@ -122,16 +122,21 @@ const LiquidGlassDatePicker: React.FC<LiquidGlassDatePickerProps> = ({
 
   const isDisabled = (date: Date) => {
     if (minDate) {
-      const minDateObj = new Date(minDate);
+      // Forcer le parsing en heure locale pour éviter les décalages UTC (YYYY-MM-DD => local minuit)
+      const minDateObj = new Date(minDate + 'T00:00:00');
       const today = new Date();
+      // Normaliser les dates à minuit local pour comparaison jour-j
+      const norm = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const nd = norm(date);
+      const nmin = norm(minDateObj);
       
       // Permettre toujours la sélection de la date actuelle
-      if (date.toDateString() === today.toDateString()) {
+      if (nd.getTime() === norm(today).getTime()) {
         return false;
       }
       
       // Désactiver seulement les dates antérieures à minDate
-      return date < minDateObj;
+      return nd < nmin;
     }
     return false;
   };

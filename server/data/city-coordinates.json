@@ -68,8 +68,8 @@
     "lng": 0.1996
   },
   "ARRAS": {
-    "lat": 50.293,
-    "lng": 2.7789
+    "lat": 50.291002,
+    "lng": 2.777535
   },
   "LENS": {
     "lat": 50.433,
@@ -132,8 +132,8 @@
     "lng": 4.9433409
   },
   "NIORT": {
-    "lat": 46.3239233,
-    "lng": -0.4646064
+    "lat": 46.3230985,
+    "lng": -0.4673997
   },
   "VITRY LE FRANCOIS": {
     "lat": 48.7262225,
@@ -152,8 +152,8 @@
     "lng": -2.0260409
   },
   "VENDOME VILLIERS SUR LOIR": {
-    "lat": 47.8219823,
-    "lng": 1.0210112
+    "lat": 47.82194,
+    "lng": 1.02114
   },
   "LANDERNEAU": {
     "lat": 48.4514803,
@@ -510,5 +510,81 @@
   "SAINT GERMAIN DES FOSSES": {
     "lat": 46.206776,
     "lng": 3.43472
+  },
+  "UZERCHE": {
+    "lat": 45.4263348,
+    "lng": 1.5660105
+  },
+  "FRASNE": {
+    "lat": 46.856048,
+    "lng": 6.159485999999999
+  },
+  "SAINT ETIENNE CHATEAUCREUX": {
+    "lat": 45.4436149,
+    "lng": 4.3996073
+  },
+  "LAHR SCHWARZW": {
+    "lat": 48.340943,
+    "lng": 7.8357049
+  },
+  "COLMAR": {
+    "lat": 48.08031829999999,
+    "lng": 7.354605200000001
+  },
+  "SELESTAT": {
+    "lat": 48.259386,
+    "lng": 7.454241000000001
+  },
+  "NARBONNE": {
+    "lat": 43.184277,
+    "lng": 3.003078
+  },
+  "OFFENBURG": {
+    "lat": 48.473451,
+    "lng": 7.9498017
+  },
+  "FREIBURG HBF": {
+    "lat": 47.996655,
+    "lng": 7.8403684
+  },
+  "RINGSHEIM EUROPA PARK": {
+    "lat": 48.2488044,
+    "lng": 7.773018
+  },
+  "BEZIERS": {
+    "lat": 43.344233,
+    "lng": 3.215795
+  },
+  "AGDE": {
+    "lat": 43.3088031,
+    "lng": 3.4768109
+  },
+  "SETE": {
+    "lat": 43.4079391,
+    "lng": 3.7007529
+  },
+  "MONTAUBAN BOURBON": {
+    "lat": 44.0177609,
+    "lng": 1.355406
+  },
+  "AGEN": {
+    "lat": 44.2032365,
+    "lng": 0.6247477
+  },
+  "CARCASSONNE": {
+    "lat": 43.2163338,
+    "lng": 2.3538776
+  },
+  "CHALON SUR SAONE": {
+    "lat": 46.7810442,
+    "lng": 4.8541306
+  },
+  "AEROPORT ROISSY CDG 2": {
+    "lat": 49.0078827,
+    "lng": 2.5507855
+  },
+  "MARNE LA VALLEE CHESSY": {
+    "lat": 48.87846159999999,
+    "lng": 2.7657959
   }
 }

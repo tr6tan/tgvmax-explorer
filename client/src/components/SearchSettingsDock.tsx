@@ -7,6 +7,8 @@ interface SearchSettings {
   departureCity: string;
   selectedDate: string;
   destinationCity?: string;
+  requireReturnWithin3Days?: boolean;
+  returnDays?: number[]; // offsets J=0..3
 }
 
 interface SearchSettingsDockProps {
@@ -251,6 +253,50 @@ const SearchSettingsDock: React.FC<SearchSettingsDockProps> = ({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* 4. Filtre retour sous 3 jours */}
+          <div className="mt-2">
+            <label className="flex items-center gap-3 text-[13px] font-medium text-gray-700 mb-2">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={!!settings.requireReturnWithin3Days}
+                onChange={(e) => handleChange('requireReturnWithin3Days', e.target.checked)}
+              />
+              Uniquement les destinations avec un retour sous 3 jours
+            </label>
+            <p className="text-[11px] text-gray-500 ml-7 -mt-1">
+              Filtre les villes où un trajet retour vers la ville de départ est disponible dans les 3 jours suivant la date choisie.
+            </p>
+            {settings.requireReturnWithin3Days && (
+              <div className="ml-7 mt-2 flex flex-wrap gap-2">
+                {([0,1,2,3] as number[]).map((d) => {
+                  const active = (settings.returnDays || [0,1,2,3]).includes(d);
+                  const label = d === 0 ? 'J' : `J+${d}`;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => {
+                        setSettings(prev => {
+                          const current = new Set(prev.returnDays && prev.returnDays.length ? prev.returnDays : [0,1,2,3]);
+                          if (current.has(d)) current.delete(d); else current.add(d);
+                          // éviter set vide: si tout désélectionné, remettre J par défaut
+                          const next = Array.from(current);
+                          const safeNext = next.length ? next.sort((a,b)=>a-b) : [0];
+                          return { ...prev, returnDays: safeNext };
+                        });
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition ${
+                        active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Info automatique */}

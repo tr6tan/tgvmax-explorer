@@ -13,6 +13,8 @@ interface SearchSettings {
   departureCity: string;
   selectedDate: string;
   destinationCity?: string;
+  requireReturnWithin3Days?: boolean;
+  returnDays?: number[];
 }
 
 function App() {
@@ -31,6 +33,8 @@ function App() {
     return {
       departureCity: 'Paris',
       selectedDate: todayString,
+      requireReturnWithin3Days: false,
+      returnDays: [0,1,2,3],
     };
   });
   const [mapStats, setMapStats] = useState<MapStats>({
@@ -47,7 +51,14 @@ function App() {
     error: dataError, 
     refetch: refetchData, 
     progress 
-  } = useTGVmaxData(searchSettings.selectedDate, searchSettings.departureCity);
+  } = useTGVmaxData(
+    searchSettings.selectedDate,
+    searchSettings.departureCity,
+    { 
+      requireReturnWithin3Days: !!searchSettings.requireReturnWithin3Days,
+      returnDays: searchSettings.returnDays
+    }
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -127,6 +138,7 @@ function App() {
   const totalTrainsCount = Array.isArray(trains) ? trains.length : 0;
   const displayedTrainsCount = mapStats.trainsCount || 0;
   const displayedRatio = totalTrainsCount > 0 ? Math.min(100, Math.round((displayedTrainsCount / totalTrainsCount) * 100)) : 0;
+  const returnFilterActive = !!searchSettings.requireReturnWithin3Days;
 
   // Affichage de l'état de chargement des données - seulement au premier chargement
   if (dataLoading && !trains) {
@@ -254,6 +266,14 @@ function App() {
               <span className="text-xs sm:text-sm">MAJ: {mapStats.lastUpdated ? new Date(mapStats.lastUpdated).toLocaleTimeString('fr-FR') : '--'}</span>
               <span className="hidden sm:inline">•</span>
               <span>{totalTrainsCount} trains</span>
+              {returnFilterActive && (
+                <>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                    retour ≤ 3j
+                  </span>
+                </>
+              )}
               {/* Barre de chargement des trains affichés sur la carte */}
               {totalTrainsCount > 0 && (
                 <div className="flex items-center gap-2">

@@ -53,7 +53,10 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
     
     // Date minimum = date d'aller
     const outboundDate = new Date(selectedTrip.date);
-    return outboundDate.toISOString().split('T')[0];
+    const year = outboundDate.getFullYear();
+    const month = String(outboundDate.getMonth() + 1).padStart(2, '0');
+    const day = String(outboundDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const formatTime = (timeString: string) => {
@@ -102,7 +105,7 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
             });
 
             if (response.data.success && response.data.trains) {
-              // Filtrer les trains pour ne garder que ceux qui vont vers la ville de départ
+              // Filtrer: destination = ville de départ, et si retour le même jour, départ > heure d'arrivée aller
               const filteredTrains = response.data.trains.filter((train: Train) => {
                 const normalizedArrival = train.arrivalStation.toUpperCase().replace(/\s+/g, ' ').trim();
                 const normalizedDeparture = selectedTrip.departureCity.toUpperCase().replace(/\s+/g, ' ').trim();
@@ -111,6 +114,12 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
                 
                 // Correspondances directes
                 if (normalizedArrival.includes(normalizedDeparture) || normalizedDeparture.includes(normalizedArrival)) {
+                  // Si même jour que l'aller, filtrer aussi par heure
+                  if (date === selectedTrip.date) {
+                    const dep = new Date(train.departureTime);
+                    const arrOutbound = new Date(selectedTrip.train.arrivalTime);
+                    return dep.getTime() > arrOutbound.getTime();
+                  }
                   return true;
                 }
                 
@@ -118,11 +127,18 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
                 const arrivalWords = normalizedArrival.split(' ');
                 const departureWords = normalizedDeparture.split(' ');
                 
-                return arrivalWords.some(word => 
+                const cityMatch = arrivalWords.some(word => 
                   word.length > 3 && departureWords.some(dWord => 
                     dWord.length > 3 && (word.includes(dWord) || dWord.includes(word))
                   )
                 );
+                if (!cityMatch) return false;
+                if (date === selectedTrip.date) {
+                  const dep = new Date(train.departureTime);
+                  const arrOutbound = new Date(selectedTrip.train.arrivalTime);
+                  return dep.getTime() > arrOutbound.getTime();
+                }
+                return true;
               });
 
               setReturnTrains(filteredTrains);
@@ -239,6 +255,35 @@ const ReturnTripModal: React.FC<ReturnTripModalProps> = ({
             onChange={setReturnDate}
             minDate={getMinReturnDate()}
           />
+          {/* Raccourcis J / J+1 / J+2 / J+3 */}
+          {selectedTrip && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(() => {
+                const base = new Date(selectedTrip.date);
+                const items: { key: string; label: string; value: string }[] = [];
+                for (let i = 0; i <= 3; i++) {
+                  const d = new Date(base);
+                  d.setDate(d.getDate() + i);
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                  const da = String(d.getDate()).padStart(2, '0');
+                  const val = `${y}-${m}-${da}`;
+                  items.push({ key: `d${i}` , label: i === 0 ? 'J' : `J+${i}`, value: val });
+                }
+                return items;
+              })().map(it => (
+                <button
+                  key={it.key}
+                  onClick={() => setReturnDate(it.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                    returnDate === it.value ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50'
+                  }`}
+                >
+                  {it.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Résultats des trajets retour */}

@@ -4,7 +4,7 @@ const router = express.Router();
 
 // Config API SNCF Officielle (Navitia)
 const SNCF_API_BASE = 'https://api.sncf.com/v1/coverage/sncf';
-const SNCF_API_KEY = process.env.SNCF_OFFICIAL_API_KEY || process.env.SNCF_API_KEY || '960e391d-c9d0-4bc5-935e-3b21bbdcf628';
+const SNCF_API_KEY = process.env.SNCF_OFFICIAL_API_KEY || process.env.SNCF_API_KEY;
 
 // Mappings rapides pour tests (villes -> admin codes, gares -> stop_area ids)
 const ADMIN_CODES = new Map([
@@ -78,6 +78,9 @@ function mapJourneyToTrain(journey) {
 // GET /api/sncf-official/journeys?from=Paris&to=Lyon&date=YYYY-MM-DD&time=HHmmss
 router.get('/journeys', async (req, res) => {
   try {
+    if (!SNCF_API_KEY) {
+      return res.status(500).json({ success: false, error: 'SNCF API key manquante (SNCF_OFFICIAL_API_KEY)' });
+    }
     const { from = 'Paris', to = 'Lyon', date, time, count = 50 } = req.query;
     const fromCode = toAdminCode(from);
     const toCode = toAdminCode(to);
@@ -107,6 +110,9 @@ router.get('/journeys', async (req, res) => {
 // GET /api/sncf-official/departures?station=Montparnasse&date=YYYY-MM-DD&time=HHmmss
 router.get('/departures', async (req, res) => {
   try {
+    if (!SNCF_API_KEY) {
+      return res.status(500).json({ success: false, error: 'SNCF API key manquante (SNCF_OFFICIAL_API_KEY)' });
+    }
     const { station = 'Montparnasse', date, time, count = 50 } = req.query;
     const stopAreaId = toStopAreaId(station);
     if (!stopAreaId) {

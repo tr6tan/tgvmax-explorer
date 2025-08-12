@@ -107,8 +107,14 @@ router.get('/journeys', async (req, res) => {
 
     return res.json({ success: true, trains, search: { from, to, date, time, count: Number(count), source: 'SNCF Official' } });
   } catch (error) {
-    console.error('❌ Erreur /sncf-official/journeys:', error.message);
-    return res.status(500).json({ success: false, error: 'Erreur API SNCF officielle', message: error.message });
+    const status = error.response?.status || 500;
+    console.error('❌ Erreur /sncf-official/journeys:', status, error.message);
+    return res.status(status).json({
+      success: false,
+      error: 'Erreur API SNCF officielle',
+      message: error.message,
+      details: error.response?.data || null
+    });
   }
 });
 
@@ -152,8 +158,14 @@ router.get('/departures', async (req, res) => {
 
     return res.json({ success: true, trains, search: { station, date, time, count: Number(count), source: 'SNCF Official' } });
   } catch (error) {
-    console.error('❌ Erreur /sncf-official/departures:', error.message);
-    return res.status(500).json({ success: false, error: 'Erreur API SNCF officielle', message: error.message });
+    const status = error.response?.status || 500;
+    console.error('❌ Erreur /sncf-official/departures:', status, error.message);
+    return res.status(status).json({
+      success: false,
+      error: 'Erreur API SNCF officielle',
+      message: error.message,
+      details: error.response?.data || null
+    });
   }
 });
 

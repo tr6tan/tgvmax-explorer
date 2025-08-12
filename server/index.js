@@ -63,6 +63,7 @@ try {
   const tgvmaxRoutes = require('./routes/tgvmax');
   const ouisncfRoutes = require('./routes/ouisncf');
   const sncfExplorerRoutes = require('./routes/sncf-explorer');
+  const sncfOfficialRoutes = require('./routes/sncf-official');
   const googlePlacesRoutes = require('./routes/google-places');
   const placesRoutes = require('./routes/places');
   const allTrainsRoutes = require('./routes/allTrains');
@@ -70,6 +71,7 @@ try {
   app.use('/api/tgvmax', tgvmaxRoutes);
   app.use('/api/ouisncf', ouisncfRoutes);
   app.use('/api/sncf-explorer', sncfExplorerRoutes);
+  app.use('/api/sncf-official', sncfOfficialRoutes);
   app.use('/api/google-places', googlePlacesRoutes);
   app.use('/api/places', placesRoutes);
   app.use('/api/all-trains', allTrainsRoutes);

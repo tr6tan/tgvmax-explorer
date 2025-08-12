@@ -7,34 +7,37 @@ const SNCF_API_BASE = 'https://api.sncf.com/v1/coverage/sncf';
 const SNCF_API_KEY = process.env.SNCF_OFFICIAL_API_KEY || process.env.SNCF_API_KEY;
 
 // Mappings rapides pour tests (villes -> admin codes, gares -> stop_area ids)
-const ADMIN_CODES = new Map([
-  ['PARIS', 'admin:fr:75056'],
-  ['LYON', 'admin:fr:69123'],
-  ['MARSEILLE', 'admin:fr:13055'],
-  ['BORDEAUX', 'admin:fr:33063'],
-  ['NANTES', 'admin:fr:44109'],
-  ['LILLE', 'admin:fr:59350'],
-  ['RENNES', 'admin:fr:35238'],
-  ['TOULOUSE', 'admin:fr:31555'],
-]);
-
-const STOP_AREAS = new Map([
-  ['MONTPARNASSE', 'stop_area:SNCF:87391003'], // Paris Montparnasse
-  ['GARE DE LYON', 'stop_area:SNCF:8775800'],  // Paris Gare de Lyon (approx)
-]);
-
-function toAdminCode(cityOrCode) {
-  if (!cityOrCode) return null;
-  const upper = String(cityOrCode).trim().toUpperCase();
-  if (upper.includes('admin:')) return upper; // déjà un code
-  return ADMIN_CODES.get(upper) || null;
+// Résolution via l'API /places pour trouver les IDs valides (administrative_region/stop_area)
+async function searchPlaces(q) {
+  const url = `${SNCF_API_BASE}/places`;
+  const resp = await axios.get(url, {
+    auth: { username: SNCF_API_KEY, password: '' },
+    params: { q },
+    timeout: 10000,
+  });
+  return resp.data?.places || [];
 }
 
-function toStopAreaId(stationOrId) {
-  if (!stationOrId) return null;
-  const upper = String(stationOrId).trim().toUpperCase();
-  if (upper.startsWith('STOP_AREA:')) return stationOrId; // déjà un id
-  return STOP_AREAS.get(upper) || null;
+async function resolveAdminOrStopAreaId(query) {
+  if (!query) return null;
+  const q = String(query).trim();
+  // Si déjà un id Navitia
+  if (/^(admin:|stop_area:)/i.test(q)) return q;
+  try {
+    const places = await searchPlaces(q);
+    if (!Array.isArray(places) || places.length === 0) return null;
+    // Priorité aux régions administratives (ville) puis stop_area
+    const admin = places.find(p => p.embedded_type === 'administrative_region');
+    if (admin?.administrative_region?.id) return admin.administrative_region.id;
+    const stop = places.find(p => p.embedded_type === 'stop_area');
+    if (stop?.stop_area?.id) return stop.stop_area.id;
+    // Sinon, prendre le premier id connu
+    const any = places[0];
+    return any?.[any.embedded_type]?.id || null;
+  } catch (e) {
+    console.warn('⚠️ resolveAdminOrStopAreaId failed for', q, e.message);
+    return null;
+  }
 }
 
 function isoDateFromParts(date, time) {
@@ -82,11 +85,13 @@ router.get('/journeys', async (req, res) => {
       return res.status(500).json({ success: false, error: 'SNCF API key manquante (SNCF_OFFICIAL_API_KEY)' });
     }
     const { from = 'Paris', to = 'Lyon', date, time, count = 50 } = req.query;
-    const fromCode = toAdminCode(from);
-    const toCode = toAdminCode(to);
+    const [fromCode, toCode] = await Promise.all([
+      resolveAdminOrStopAreaId(from),
+      resolveAdminOrStopAreaId(to),
+    ]);
 
     if (!fromCode || !toCode) {
-      return res.status(400).json({ success: false, error: 'from/to non reconnus (codes admin manquants)' });
+      return res.status(400).json({ success: false, error: 'from/to non reconnus (résolution Navitia /places sans résultat)' });
     }
 
     const datetime = isoDateFromParts(date, time);
@@ -114,9 +119,9 @@ router.get('/departures', async (req, res) => {
       return res.status(500).json({ success: false, error: 'SNCF API key manquante (SNCF_OFFICIAL_API_KEY)' });
     }
     const { station = 'Montparnasse', date, time, count = 50 } = req.query;
-    const stopAreaId = toStopAreaId(station);
+    const stopAreaId = await resolveAdminOrStopAreaId(station);
     if (!stopAreaId) {
-      return res.status(400).json({ success: false, error: 'station non reconnue (stop_area id manquant)' });
+      return res.status(400).json({ success: false, error: 'station non reconnue (résolution Navitia /places sans résultat)' });
     }
 
     const datetime = isoDateFromParts(date, time);

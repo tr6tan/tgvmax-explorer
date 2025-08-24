@@ -47,7 +47,7 @@
   },
   "proxy": "http://localhost:4000",
   "devDependencies": {
-    "@figma/plugin-typings": "^1.116.0",
+    "@figma/plugin-typings": "^1.117.0",
     "cross-env": "^10.0.0"
   }
 }

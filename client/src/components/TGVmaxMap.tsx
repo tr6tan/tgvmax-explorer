@@ -701,33 +701,10 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         'CANNES': [43.5528, 7.0174],
         'ANTIBES': [43.5804, 7.1251],
         'GRASSE': [43.6588, 6.9244],
-        'SAINT PIERRE DES CORPS': [47.3900, 0.6892],
-        'VALENCIENNES': [50.3591, 3.5240],
-        'MONTBARD': [47.6228, 4.3370],
-        'NIORT': [46.3237, -0.4588],
-        'SURGERES': [46.1089, -0.7519],
-        'VENDOME VILLIERS SUR LOIR': [47.7936, 1.0653],
-        'TOURS': [47.2184, 0.7055],
-        'ANGERS': [47.4784, -0.5632],
-        'LE MANS': [48.0061, 0.1996],
-        // Nouvelles villes avec noms complexes
-        'LA ROCHELLE VILLE': [46.1591, -1.1520],
-        'CHAMBERY CHALLES LES EAUX': [45.5646, 5.9262],
-        'LE CROISIC': [47.2919, -2.5138],
-        'LA BAULE ESCOUBLAC': [47.2861, -2.3920],
-        'GUINGAMP': [48.5634, -3.1508],
-        'MORLAIX': [48.5774, -3.8292],
-        'BETHUNE': [50.5294, 2.6404],
-        'BREST': [48.3904, -4.4861],
-        'LANDERNEAU': [48.4489, -4.2475],
-        'ANNECY': [45.8992, 6.1294],
-        'LE CREUSOT MONTCEAU MONTCHANIN': [46.8061, 4.4163],
-        'ST MAIXENT (DEUX SEVRES)': [46.3237, -0.4588],
         'MULHOUSE': [47.7508, 7.3359],
         'MULHOUSE VILLE': [47.7508, 7.3359],
         'BELFORT': [47.6381, 6.8638],
         'BELFORT MONTBELIARD TGV': [47.6381, 6.8638],
-        'BESANCON': [47.2378, 6.0241],
         'BESANCON VIOTTE': [47.2378, 6.0241],
         'CHALON SUR SAONE': [46.7798, 4.8538],
         'MACON': [46.3078, 4.8308],
@@ -765,7 +742,18 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
         'PARIS AUSTERLITZ': [48.8419, 2.3644],
         'PARIS MONTPARNASSE': [48.8404, 2.3225],
         'PARIS SAINT LAZARE': [48.8759, 2.3245],
-        'AIX LES BAINS LE REVARD': [45.6889, 5.9153],
+        // Nouvelles coordonnées ajoutées
+        'LA ROCHELLE VILLE': [46.1591, -1.1520],
+        'CHAMBERY CHALLES LES EAUX': [45.5646, 5.9262],
+        'LE CROISIC': [47.2919, -2.5138],
+        'LA BAULE ESCOUBLAC': [47.2861, -2.3920],
+        'GUINGAMP': [48.5634, -3.1508],
+        'MORLAIX': [48.5774, -3.8292],
+        'BETHUNE': [50.5294, 2.6404],
+        'BREST': [48.3904, -4.4861],
+        'LANDERNEAU': [48.4489, -4.2475],
+        'ANNECY': [45.8992, 6.1294],
+        'LE CREUSOT MONTCEAU MONTCHANIN': [46.8061, 4.4163],
       };
       
       console.log('🔍 Recherche coordonnées pour:', cityName, '→ Normalisé:', normalizedCity);
@@ -1361,6 +1349,28 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
           style={{ minHeight: 'calc(100vh - 120px)', width: '100%' }}
         />
         
+        {/* Overlay pour message "Ville de départ ou d'arrivée requise" */}
+        {(!searchSettings.departureCity && !searchSettings.destinationCity) && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-10">
+            <div className="text-center p-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-3xl">🚉</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Ville de départ ou d'arrivée requise
+              </h3>
+              <p className="text-gray-600 text-lg mb-6 max-w-md">
+                Veuillez rentrer une ville de départ ou d'arrivée pour voir les trajets TGVmax disponibles sur la carte.
+              </p>
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+                <p className="text-sm text-gray-700">
+                  💡 <strong>Conseil :</strong> Commencez par sélectionner votre ville de départ ou d'arrivée dans les paramètres de recherche.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Sélecteur de style de carte */}
         <div className="absolute top-4 right-4 z-[1000] style-selector">
           <button
@@ -1478,7 +1488,7 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
       )}
 
       {/* Carte avec glassmorphisme */}
-      <div className="bg-white/80 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-2xl">
+      <div className="bg-white/80 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-2xl relative">
         <div
           ref={mapRef}
           style={{
@@ -1489,6 +1499,28 @@ export default function TGVmaxMap({ searchSettings, currentTime, apiType, trains
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)'
           }}
         />
+
+        {/* Overlay pour message "Ville de départ ou d'arrivée requise" */}
+        {(!searchSettings.departureCity && !searchSettings.destinationCity) && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+            <div className="text-center p-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <span className="text-3xl">🚉</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Ville de départ ou d'arrivée requise
+              </h3>
+              <p className="text-gray-600 text-lg mb-6 max-w-md">
+                Veuillez rentrer une ville de départ ou d'arrivée pour voir les trajets TGVmax disponibles sur la carte.
+              </p>
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-200">
+                <p className="text-sm text-gray-700">
+                  💡 <strong>Conseil :</strong> Commencez par sélectionner votre ville de départ ou d'arrivée dans les paramètres de recherche.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Légende glassmorphisme */}
         {filteredTrains.length > 0 && (

@@ -8,7 +8,6 @@ import { MapStats } from './types';
 const TGVmaxMap = lazy(() => import('./components/TGVmaxMap'));
 const SearchSettingsDock = lazy(() => import('./components/SearchSettingsDock'));
 const ReturnTripModal = lazy(() => import('./components/ReturnTripModal'));
-const SNCFOfficialExplorer = lazy(() => import('./components/SNCFOfficialExplorer'));
 
 interface SearchSettings {
   departureCity: string;
@@ -21,7 +20,6 @@ interface SearchSettings {
 function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettingsDock, setShowSettingsDock] = useState(true);
-  const [showSncfOfficial, setShowSncfOfficial] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [selectedOutboundTrip, setSelectedOutboundTrip] = useState<any>(null);
   const [searchSettings, setSearchSettings] = useState<SearchSettings>(() => {
@@ -33,7 +31,7 @@ function App() {
     const todayString = `${year}-${month}-${day}`;
     
     return {
-      departureCity: 'Paris',
+      departureCity: '', // Aucune ville de départ par défaut
       selectedDate: todayString,
       requireReturnWithin3Days: false,
       returnDays: [0,1,2,3],
@@ -181,8 +179,8 @@ function App() {
     );
   }
 
-  // Affichage si aucune donnée - seulement si pas de trains et pas en cours de chargement
-  if (!trains || trains.length === 0) {
+  // Affichage si aucune donnée - seulement si pas de trains, pas en cours de chargement ET qu'une ville de départ est spécifiée
+  if ((!trains || trains.length === 0) && searchSettings.departureCity) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
@@ -224,15 +222,6 @@ function App() {
 
         {/* Main content area */}
         <div className="flex-1 relative" style={{ height: 'calc(100vh - 120px)' }}>
-          {/* Bouton d'ouverture du panneau SNCF Officielle */}
-          <div className="absolute top-4 right-4 z-[1500] flex gap-2">
-            <button
-              onClick={() => setShowSncfOfficial(v => !v)}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-600 text-white shadow hover:bg-purple-700 transition-colors"
-            >
-              SNCF Officielle
-            </button>
-          </div>
 
           {/* Full-screen Map */}
           <Suspense
@@ -265,29 +254,7 @@ function App() {
             </Suspense>
           )}
 
-          {/* Panneau latéral: Explorateur SNCF Officielle */}
-          {showSncfOfficial && (
-            <Suspense fallback={null}>
-              <div className="absolute top-16 right-4 z-[1600] w-[420px] max-h-[80vh] overflow-auto bg-white rounded-xl shadow-xl border border-gray-200">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                  <div className="text-sm font-semibold text-gray-800">API SNCF Officielle</div>
-                  <button
-                    onClick={() => setShowSncfOfficial(false)}
-                    className="text-gray-500 hover:text-gray-800 text-sm"
-                  >
-                    Fermer
-                  </button>
-                </div>
-                <div className="p-4">
-                  <SNCFOfficialExplorer
-                    departureCity={searchSettings.departureCity}
-                    selectedDate={searchSettings.selectedDate}
-                    currentTime={currentTime}
-                  />
-                </div>
-              </div>
-            </Suspense>
-          )}
+
 
         </div>
 

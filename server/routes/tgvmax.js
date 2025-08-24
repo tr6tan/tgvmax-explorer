@@ -18,7 +18,7 @@ router.get('/search', async (req, res) => {
       ? Array.from(new Set(returnDaysParam.split(',').map(s => parseInt(s, 10)).filter(n => Number.isFinite(n) && n >= 0 && n <= 3))).sort((a,b)=>a-b)
       : [0,1,2,3];
     
-    console.log(`🔍 Recherche TGVmax depuis ${from} pour le ${date}...`);
+    console.log(`🔍 Recherche TGVmax depuis ${from || 'TOUTES LES VILLES'} pour le ${date}...`);
 
     // Vraie API TGVmax d'Opendatasoft
     const tgvmaxApiUrl = 'https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records';
@@ -54,9 +54,6 @@ router.get('/search', async (req, res) => {
         'Reims': ['REIMS']
       };
 
-      const encodedDate = encodeURIComponent(`${formattedDate}`);
-      const encodedHappyCard = encodeURIComponent('OUI');
-      
       // Fonction pour récupérer tous les trajets avec pagination pour une origine donnée
       const fetchAllTrainsForOrigin = async (originName) => {
         let allRecords = [];
@@ -67,8 +64,14 @@ router.get('/search', async (req, res) => {
         console.log(`🔄 Récupération de tous les trajets avec pagination...`);
         
         while (hasMore) {
-          const encodedOrigin = encodeURIComponent(`${originName}`);
-          const url = `${tgvmaxApiUrl}?limit=${limit}&offset=${offset}&refine=date%3A${encodedDate}&refine=origine%3A${encodedOrigin}&refine=od_happy_card%3A${encodedHappyCard}`;
+          let url;
+          if (originName) {
+            // Si une origine est spécifiée, filtrer par origine
+            url = `${tgvmaxApiUrl}?limit=${limit}&offset=${offset}&refine=date:${formattedDate}&refine=origine:${originName}&refine=od_happy_card:OUI`;
+          } else {
+            // Si aucune origine, récupérer tous les trajets pour la date
+            url = `${tgvmaxApiUrl}?limit=${limit}&offset=${offset}&refine=date:${formattedDate}&refine=od_happy_card:OUI`;
+          }
           
           console.log(`📡 Requête ${Math.floor(offset/limit) + 1}: offset=${offset}, limit=${limit}`);
           
@@ -102,14 +105,41 @@ router.get('/search', async (req, res) => {
       
       // Récupérer tous les trajets
       let tgvmaxRecords = [];
-      const variants = originVariantsByCity[from] || [from];
-      console.log(`🚉 Variantes d'origine essayées pour "${from}":`, variants);
-      for (const originName of variants) {
-        console.log(`🔎 Essai avec origine: ${originName}`);
-        const records = await fetchAllTrainsForOrigin(originName);
-        tgvmaxRecords.push(...records);
-        // Si on a assez de résultats, on peut sortir tôt
-        if (tgvmaxRecords.length >= 50) break;
+      
+      if (from) {
+        // Si une ville de départ est spécifiée, utiliser les variantes
+        const variants = originVariantsByCity[from] || [from];
+        console.log(`🚉 Variantes d'origine essayées pour "${from}":`, variants);
+        for (const originName of variants) {
+          console.log(`🔎 Essai avec origine: ${originName}`);
+          const records = await fetchAllTrainsForOrigin(originName);
+          tgvmaxRecords.push(...records);
+          // Si on a assez de résultats, on peut sortir tôt
+          if (tgvmaxRecords.length >= 50) break;
+        }
+      } else {
+        // Si aucune ville de départ, retourner un message explicite
+        console.log(`⚠️ Aucune ville de départ spécifiée - aucun trajet retourné`);
+        res.json({
+          success: true,
+          trains: [],
+          search: {
+            from: null,
+            date,
+            totalTrains: 0,
+            source: 'API TGVmax Opendatasoft',
+            apiStatus: 'Ville de départ requise',
+            totalRecords: 0,
+            convertedTrains: 0,
+            totalSeats: 0,
+            note: 'Veuillez rentrer une ville de départ',
+            requireReturnWithinDays: requireReturnWithinDays || null,
+            returnFilter: null,
+            returnDaysSelected: selectedOffsets,
+            message: 'Veuillez rentrer une ville de départ'
+          }
+        });
+        return; // Arrêter l'exécution ici
       }
       
       // Si pas assez de résultats, essayer sans filtre d'origine mais avec od_happy_card
@@ -161,7 +191,7 @@ router.get('/search', async (req, res) => {
       let returnFilterStats = null;
 
       // Optionnel: filtrer uniquement les destinations avec un retour disponible sous N jours
-      if (requireReturnWithinDays && Number.isFinite(requireReturnWithinDays) && requireReturnWithinDays > 0) {
+      if (requireReturnWithinDays && Number.isFinite(requireReturnWithinDays) && requireReturnWithinDays > 0 && from) {
         console.log(`🔁 Filtrage des destinations avec retour sous ${requireReturnWithinDays} jours`);
 
         // J..J+N (inclus)
@@ -239,43 +269,38 @@ router.get('/search', async (req, res) => {
           }
         }
 
-        // Build SQL list for destination variants (city of origin on return)
-        const destReturnVariantsSql = destReturnVariants
-          .map(v => `'${v.replace(/'/g, "''")}'`)
-          .join(',');
-
-        const encodedHappyCard = encodeURIComponent('OUI');
-
         async function scanReturnsForDay(day) {
-          const encodedDate = encodeURIComponent(`${day}`);
-          const where = encodeURIComponent(`destination IN (${destReturnVariantsSql})`);
           let offset = 0;
           const limit = 100;
           let hasMore = true;
-          while (hasMore) {
-            const url = `${tgvmaxApiUrl}?limit=${limit}&offset=${offset}&refine=date%3A${encodedDate}&refine=od_happy_card%3A${encodedHappyCard}&where=${where}`;
-            try {
-              const resp = await axios.get(url, { timeout: 15000 });
-              const results = (resp.data && resp.data.results) || [];
-              if (!results.length) {
-                hasMore = false;
-                break;
-              }
-              for (const r of results) {
-                const normOrig = simpleNormalize(r.origine || '');
-                const canonical = canonicalByVariant.get(normOrig);
-                if (!canonical) continue;
-                if (day === formattedDate) {
-                  const threshold = earliestArrivalByStation.get(canonical);
-                  if (threshold && !((r.heure_depart || '') > threshold)) continue;
+          
+          // Utiliser refine au lieu de where pour filtrer par destination
+          for (const destVariant of destReturnVariants) {
+            while (hasMore) {
+              const url = `${tgvmaxApiUrl}?limit=${limit}&offset=${offset}&refine=date:${day}&refine=destination:${destVariant}&refine=od_happy_card:OUI`;
+              try {
+                const resp = await axios.get(url, { timeout: 15000 });
+                const results = (resp.data && resp.data.results) || [];
+                if (!results.length) {
+                  hasMore = false;
+                  break;
                 }
-                allowedArrivalSet.add(canonical);
+                for (const r of results) {
+                  const normOrig = simpleNormalize(r.origine || '');
+                  const canonical = canonicalByVariant.get(normOrig);
+                  if (!canonical) continue;
+                  if (day === formattedDate) {
+                    const threshold = earliestArrivalByStation.get(canonical);
+                    if (threshold && !((r.heure_depart || '') > threshold)) continue;
+                  }
+                  allowedArrivalSet.add(canonical);
+                }
+                offset += limit;
+                if (offset >= 1000) hasMore = false; // safety cap
+              } catch (e) {
+                console.warn(`⚠️ Scan retours échoué pour ${day}:`, e.message);
+                hasMore = false;
               }
-              offset += limit;
-              if (offset >= 1000) hasMore = false; // safety cap
-            } catch (e) {
-              console.warn(`⚠️ Scan retours échoué pour ${day}:`, e.message);
-              hasMore = false;
             }
           }
         }

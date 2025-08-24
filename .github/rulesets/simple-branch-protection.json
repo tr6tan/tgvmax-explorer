@@ -1,0 +1,46 @@
+{
+  "name": "Main Branch Protection",
+  "description": "Protection rules for the main branch to ensure code quality and prevent accidental changes",
+  "enforcement": "active",
+  "target": "branch",
+  "rules": [
+    {
+      "type": "creation",
+      "parameters": {}
+    },
+    {
+      "type": "update",
+      "parameters": {}
+    },
+    {
+      "type": "deletion",
+      "parameters": {}
+    },
+    {
+      "type": "required_linear_history",
+      "parameters": {}
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "require_code_owner_review": false,
+        "require_last_push_approval": true,
+        "required_approving_review_count": 1,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "non_fast_forward",
+      "parameters": {}
+    }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/heads/main"
+      ],
+      "exclude": []
+    }
+  },
+  "bypass_actors": []
+}

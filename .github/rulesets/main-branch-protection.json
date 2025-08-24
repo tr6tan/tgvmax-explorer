@@ -1,0 +1,83 @@
+{
+  "name": "Main Branch Protection",
+  "description": "Protection rules for the main branch to ensure code quality and prevent accidental changes",
+  "enforcement": "active",
+  "target": "branch",
+  "rules": [
+    {
+      "type": "creation",
+      "parameters": {}
+    },
+    {
+      "type": "update",
+      "parameters": {}
+    },
+    {
+      "type": "deletion",
+      "parameters": {}
+    },
+    {
+      "type": "required_linear_history",
+      "parameters": {}
+    },
+    {
+      "type": "required_deployments",
+      "parameters": {
+        "required_deployment_environments": []
+      }
+    },
+    {
+      "type": "required_signatures",
+      "parameters": {}
+    },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "require_code_owner_review": false,
+        "require_last_push_approval": true,
+        "required_approving_review_count": 1,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "required_status_checks": [],
+        "strict_required_status_checks_policy": {
+          "strict_required_status_checks_policy": true
+        }
+      }
+    },
+    {
+      "type": "non_fast_forward",
+      "parameters": {}
+    },
+    {
+      "type": "required_workflows",
+      "parameters": {
+        "required_workflows": []
+      }
+    },
+    {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": []
+      }
+    }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/heads/main"
+      ],
+      "exclude": []
+    },
+    "repository_name": {
+      "include": [
+        "tgvmax-explorer"
+      ],
+      "exclude": []
+    }
+  },
+  "bypass_actors": []
+}

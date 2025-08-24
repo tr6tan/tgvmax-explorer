@@ -1,0 +1,92 @@
+# Configuration Dependabot pour TGVMax Explorer
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Configuration pour les dépendances npm (client)
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "tr6tan"
+    assignees:
+      - "tr6tan"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    ignore:
+      # Ignorer les mises à jour majeures automatiques
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Configuration pour les dépendances npm (server)
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "tr6tan"
+    assignees:
+      - "tr6tan"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    ignore:
+      # Ignorer les mises à jour majeures automatiques
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Configuration pour les dépendances npm (racine)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "tr6tan"
+    assignees:
+      - "tr6tan"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    ignore:
+      # Ignorer les mises à jour majeures automatiques
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Configuration pour GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "tr6tan"
+    assignees:
+      - "tr6tan"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"

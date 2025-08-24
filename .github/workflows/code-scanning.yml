@@ -1,0 +1,124 @@
+name: "Code Scanning"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    # Exécuter tous les lundis à 9h00
+    - cron: '0 9 * * 1'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # Si vous utilisez des outils de build personnalisés, décommentez et configurez :
+        # build-mode: manual
+
+    # Autodetect build steps by listening to the most popular build systems.
+    # Remove this step if you use a build system not listed here.
+    # https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-the-codeql-workflow-for-compiled-languages#build-steps
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+
+  # Workflow pour ESLint Security
+  eslint-security:
+    name: ESLint Security
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies (client)
+      run: |
+        cd client
+        npm ci
+      if: hashFiles('client/package-lock.json') != ''
+
+    - name: Install dependencies (server)
+      run: |
+        cd server
+        npm ci
+      if: hashFiles('server/package-lock.json') != ''
+
+    - name: Run ESLint Security (client)
+      run: |
+        cd client
+        npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-report.json || true
+      if: hashFiles('client/package-lock.json') != ''
+
+    - name: Run ESLint Security (server)
+      run: |
+        cd server
+        npx eslint . --ext .js,.jsx,.ts,.tsx --format json --output-file eslint-report.json || true
+      if: hashFiles('server/package-lock.json') != ''
+
+    - name: Upload ESLint results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: client/eslint-report.json
+      continue-on-error: true
+
+  # Workflow pour npm audit
+  npm-audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Audit dependencies (client)
+      run: |
+        cd client
+        npm audit --audit-level moderate --json > audit-report.json || true
+      if: hashFiles('client/package-lock.json') != ''
+
+    - name: Audit dependencies (server)
+      run: |
+        cd server
+        npm audit --audit-level moderate --json > audit-report.json || true
+      if: hashFiles('server/package-lock.json') != ''
+
+    - name: Upload audit results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: client/audit-report.json
+      continue-on-error: true
